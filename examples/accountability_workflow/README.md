@@ -29,5 +29,6 @@ The canonical example module is
 ```bash
 cd examples/accountability_workflow
 mix deps.get
-mix run -e "AccountabilityWorkflow.Demo.run()"
+mix run -e "AccountabilityWorkflow.Demo.run(:verbose)"
+mix run -e "AccountabilityWorkflow.Demo.run(:concise)"
 ```
