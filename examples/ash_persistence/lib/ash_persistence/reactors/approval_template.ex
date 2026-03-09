@@ -2,14 +2,25 @@ defmodule AshPersistence.Reactors.ApprovalTemplate do
   @moduledoc false
 
   defmacro __using__(opts) do
-    store_config = Keyword.fetch!(opts, :store_config)
+    sqlite_opts = Keyword.get(opts, :sqlite)
+    postgres_opts = Keyword.get(opts, :postgres)
+    store_config = Keyword.get(opts, :store_config, [])
 
-    quote bind_quoted: [store_config: store_config] do
+    quote bind_quoted: [
+            sqlite_opts: sqlite_opts,
+            postgres_opts: postgres_opts,
+            store_config: store_config
+          ] do
       use Reactor, extensions: [AshDurableReactor]
 
       durable do
-        store AshDurableReactor.AshStore
-        store_config store_config
+        if sqlite_opts, do: sqlite(sqlite_opts)
+        if postgres_opts, do: postgres(postgres_opts)
+        if store_config != [] do
+          store AshDurableReactor.AshStore
+          store_config store_config
+        end
+
         persist_context [:request_id]
       end
 

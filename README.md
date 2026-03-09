@@ -14,23 +14,27 @@ It currently provides:
 ## Ash-Backed Persistence
 
 If you want persistence to be an Ash concern instead of a library concern, use
-`AshDurableReactor.AshStore` and point it at Ash resources:
+the built-in backend shortcuts:
 
 ```elixir
 durable do
-  store AshDurableReactor.AshStore
-
-  store_config [
-    domain: MyApp.Durable,
-    run_resource: MyApp.Durable.Run,
-    step_resource: MyApp.Durable.Step,
-    event_resource: MyApp.Durable.Event
-  ]
+  sqlite repo: MyApp.Repo
 end
 ```
 
-Those resources can use `Ash.DataLayer.Ets`, `AshSqlite.DataLayer`, or
-`AshPostgres.DataLayer`.
+`otp_app` defaults to the top-level namespace from the repo module, so
+`MyApp.Repo` infers `:my_app`.
+
+Or:
+
+```elixir
+durable do
+  postgres repo: MyApp.Repo
+end
+```
+
+These shortcuts generate the Ash domain/resources internally and route durable
+storage through `AshDurableReactor.AshStore`.
 
 ## Quick Example
 
@@ -39,6 +43,7 @@ defmodule MyApp.ApprovalFlow do
   use Reactor, extensions: [AshDurableReactor]
 
   durable do
+    sqlite repo: MyApp.Repo
     persist_context [:request_id]
   end
 
@@ -77,12 +82,23 @@ mix test
 
 ## Example App
 
-There are runnable examples in:
+The canonical runnable example is `examples/ash_persistence`.
 
-- `examples/manual_approval`
-- `examples/ash_persistence`
+Run the SQLite-backed demo with:
 
-Run the Ash persistence example with `cd examples/ash_persistence && mix ash_sqlite.create && mix ash_sqlite.migrate && mix run -e "AshPersistence.Demo.run_sqlite()"`.
+```bash
+cd examples/ash_persistence
+mix ash_sqlite.create
+mix ash_sqlite.migrate
+mix run -e "AshPersistence.Demo.run_sqlite()"
+```
+
+For zero-setup local execution, run the ETS-backed Ash demo with:
+
+```bash
+cd examples/ash_persistence
+mix run -e "AshPersistence.Demo.run_ets()"
+```
 
 ## Installation
 
