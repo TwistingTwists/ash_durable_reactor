@@ -12,7 +12,7 @@ defmodule AshPersistence.Demo do
     )
 
     stop_ets_tables()
-    run_demo(EtsApprovalFlow, "ets-demo")
+    run_demo(EtsApprovalFlow, fresh_run_id("ets-demo"))
   end
 
   def run_sqlite do
@@ -23,7 +23,7 @@ defmodule AshPersistence.Demo do
       event_resource: AshPersistence.Durable.Sqlite.Event
     )
 
-    run_demo(SqliteApprovalFlow, "sqlite-demo")
+    run_demo(SqliteApprovalFlow, fresh_run_id("sqlite-demo"))
   end
 
   defp run_demo(reactor, run_id) do
@@ -66,5 +66,9 @@ defmodule AshPersistence.Demo do
         ] do
       Ash.DataLayer.Ets.stop(resource)
     end
+  end
+
+  defp fresh_run_id(prefix) do
+    "#{prefix}-#{System.unique_integer([:positive, :monotonic])}"
   end
 end
