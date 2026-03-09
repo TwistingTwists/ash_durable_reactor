@@ -3,7 +3,7 @@ defmodule AshDurableReactorIntegrationTest do
 
   alias AshDurableReactor.Store
   alias AshDurableReactor.TestCounter
-  alias AshDurableReactor.TestReactors.{ApprovalFlow, CompensationFlow, UndoFlow}
+  alias AshDurableReactor.TestReactors.{ApprovalFlow, CompensationFlow, CustomResumableFlow, UndoFlow}
 
   setup_all do
     start_supervised!(TestCounter)
@@ -16,7 +16,7 @@ defmodule AshDurableReactorIntegrationTest do
     :ok
   end
 
-  test "replays completed steps after an external signal arrives" do
+  test "replays completed steps after a halted step is resumed" do
     run_id = "approval-1"
 
     assert {:halted, _reactor} =
@@ -35,7 +35,7 @@ defmodule AshDurableReactorIntegrationTest do
     assert %{status: :succeeded, output: 6} = Store.get_step(run_id, :seed)
     assert %{status: :halted, halt_payload: %{awaiting: :approval}} = Store.get_step(run_id, :approval)
 
-    assert :ok = AshDurableReactor.signal(run_id, :approval, "approved")
+    assert :ok = AshDurableReactor.resume_step(run_id, :approval, "approved")
 
     assert {:ok, "approved:6"} =
              AshDurableReactor.run(
@@ -68,6 +68,31 @@ defmodule AshDurableReactorIntegrationTest do
     assert TestCounter.get(:undo_allocate) == 1
     assert %{status: :undone} = Store.get_step(run_id, :allocate)
     assert %{status: :failed} = Store.get_run(run_id)
+  end
+
+  test "custom step modules can implement resume/4" do
+    run_id = "custom-resume-1"
+
+    assert {:halted, _reactor} =
+             AshDurableReactor.run(
+               CustomResumableFlow,
+               %{prefix: "done"},
+               %{},
+               run_id: run_id,
+               async?: false
+             )
+
+    assert %{status: :halted, mode: :resumable} = Store.get_step(run_id, :approval)
+    assert :ok = AshDurableReactor.resume_step(run_id, :approval, "approved")
+
+    assert {:ok, "done:approved"} =
+             AshDurableReactor.run(
+               CustomResumableFlow,
+               %{prefix: "done"},
+               %{},
+               run_id: run_id,
+               async?: false
+             )
   end
 
   test "persists compensation outcomes when a step recovers" do

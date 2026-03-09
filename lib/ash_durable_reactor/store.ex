@@ -10,7 +10,6 @@ defmodule AshDurableReactor.Store do
   @runs :ash_durable_reactor_runs
   @steps :ash_durable_reactor_steps
   @events :ash_durable_reactor_events
-  @signals :ash_durable_reactor_signals
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -21,7 +20,6 @@ defmodule AshDurableReactor.Store do
     new_table(@runs, [:named_table, :set, :public])
     new_table(@steps, [:named_table, :set, :public])
     new_table(@events, [:named_table, :bag, :public])
-    new_table(@signals, [:named_table, :set, :public])
     {:ok, state}
   end
 
@@ -125,6 +123,7 @@ defmodule AshDurableReactor.Store do
       step
       |> Map.merge(Map.take(attrs, [:inputs, :step_impl, :step_hash, :mode]))
       |> Map.put(:status, :running)
+      |> clear_resume_fields()
       |> Map.update(:attempt, 1, &(&1 + 1))
       |> Map.put(:started_at, DateTime.utc_now())
       |> Map.put(:updated_at, DateTime.utc_now())
@@ -138,6 +137,9 @@ defmodule AshDurableReactor.Store do
       |> Map.merge(Map.take(attrs, [:inputs, :step_impl, :step_hash, :mode]))
       |> Map.put(:status, :succeeded)
       |> Map.put(:output, output)
+      |> Map.put(:halt_payload, nil)
+      |> Map.put(:error, nil)
+      |> clear_resume_fields()
       |> Map.put(:completed_at, DateTime.utc_now())
       |> Map.put(:updated_at, DateTime.utc_now())
     end)
@@ -150,6 +152,9 @@ defmodule AshDurableReactor.Store do
       |> Map.merge(Map.take(attrs, [:inputs, :step_impl, :step_hash, :mode]))
       |> Map.put(:status, :halted)
       |> Map.put(:halt_payload, reason)
+      |> Map.put(:output, nil)
+      |> Map.put(:error, nil)
+      |> clear_resume_fields()
       |> Map.put(:updated_at, DateTime.utc_now())
     end)
   end
@@ -159,8 +164,9 @@ defmodule AshDurableReactor.Store do
     upsert_step(run_id, step_name, fn step ->
       step
       |> Map.merge(Map.take(attrs, [:inputs, :step_impl, :step_hash, :mode]))
-      |> Map.put(:status, :retrying)
+      |> Map.put(:status, :failed)
       |> Map.put(:error, reason)
+      |> clear_resume_fields()
       |> Map.put(:updated_at, DateTime.utc_now())
     end)
   end
@@ -172,6 +178,7 @@ defmodule AshDurableReactor.Store do
       |> Map.merge(Map.take(attrs, [:inputs, :step_impl, :step_hash, :mode]))
       |> Map.put(:status, :failed)
       |> Map.put(:error, reason)
+      |> clear_resume_fields()
       |> Map.put(:completed_at, DateTime.utc_now())
       |> Map.put(:updated_at, DateTime.utc_now())
     end)
@@ -206,24 +213,27 @@ defmodule AshDurableReactor.Store do
   end
 
   @impl true
-  def put_signal(run_id, signal_name, value) do
-    true = :ets.insert(@signals, {{run_id, signal_name}, value})
-    :ok
-  end
+  def resume_step(run_id, step_name, value) do
+    case get_step(run_id, step_name) do
+      nil ->
+        {:error, :step_not_found}
 
-  @impl true
-  def get_signal(run_id, signal_name) do
-    key = {run_id, signal_name}
+      %{status: :halted} ->
+        upsert_step(run_id, step_name, fn step ->
+          step
+          |> Map.put(:resume_payload, value)
+          |> Map.put(:resumed_at, DateTime.utc_now())
+          |> Map.put(:updated_at, DateTime.utc_now())
+        end)
 
-    case :ets.lookup(@signals, key) do
-      [{^key, value}] -> {:ok, value}
-      [] -> :error
+      %{status: status} ->
+        {:error, {:step_not_halted, status}}
     end
   end
 
   @impl true
   def reset! do
-    for table <- [@runs, @steps, @events, @signals] do
+    for table <- [@runs, @steps, @events] do
       :ets.delete_all_objects(table)
     end
 
@@ -253,9 +263,14 @@ defmodule AshDurableReactor.Store do
           attempt: 0
         }
 
-    updated = fun.(existing)
-    true = :ets.insert(@steps, {{run_id, step_name}, updated})
-    :ok
+    case fun.(existing) do
+      {:error, _reason} = error ->
+        error
+
+      updated ->
+        true = :ets.insert(@steps, {{run_id, step_name}, updated})
+        :ok
+    end
   end
 
   defp new_table(name, options) do
@@ -263,5 +278,11 @@ defmodule AshDurableReactor.Store do
       :undefined -> :ets.new(name, options)
       _tid -> name
     end
+  end
+
+  defp clear_resume_fields(step) do
+    step
+    |> Map.put(:resume_payload, nil)
+    |> Map.put(:resumed_at, nil)
   end
 end

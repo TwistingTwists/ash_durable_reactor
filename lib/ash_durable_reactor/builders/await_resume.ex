@@ -1,4 +1,4 @@
-defimpl Reactor.Dsl.Build, for: AshDurableReactor.Dsl.AwaitSignal do
+defimpl Reactor.Dsl.Build, for: AshDurableReactor.Dsl.AwaitResume do
   @moduledoc false
 
   alias Reactor.Builder
@@ -8,7 +8,7 @@ defimpl Reactor.Dsl.Build, for: AshDurableReactor.Dsl.AwaitSignal do
     Builder.add_step(
       reactor,
       step.name,
-      {AshDurableReactor.Steps.AwaitSignal, signal: step.signal || step.name},
+      {AshDurableReactor.Steps.AwaitResume, step_name: step.name},
       [],
       async?: false,
       description: step.description,

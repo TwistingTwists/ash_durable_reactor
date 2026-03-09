@@ -27,7 +27,7 @@ Key pattern:
 
 - use `Spark.Dsl.Patch.AddEntity` to inject domain-specific steps into the base Reactor DSL without changing Reactor itself
 
-This is a good fit for durable-specific step primitives. That pattern directly informed the `await_signal` DSL entity in this repository: durability can add its own step forms while still looking like normal Reactor DSL.
+This is a good fit for durable-specific step primitives. That pattern directly informed the resumable wait DSL entity in this repository: durability can add its own step forms while still looking like normal Reactor DSL.
 
 `reactor_req` also includes a small formatter workaround module (`Reactor.Req.Ext`) that mirrors the patched entities in a synthetic extension. That is a reminder that Spark DSL ergonomics matter when an extension relies heavily on patched entities.
 

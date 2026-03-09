@@ -39,7 +39,7 @@ defmodule AshPersistence.Demo do
     IO.inspect(AshDurableReactor.get_run(run_id, AshDurableReactor.AshStore), label: "persisted run")
     IO.inspect(AshDurableReactor.list_steps(run_id, AshDurableReactor.AshStore), label: "persisted steps")
 
-    :ok = AshDurableReactor.signal(run_id, :manager_approval, %{approved_by: "manager-7"}, AshDurableReactor.AshStore)
+    :ok = AshDurableReactor.resume_step(run_id, :approval, %{approved_by: "manager-7"}, AshDurableReactor.AshStore)
 
     second =
       AshDurableReactor.run(

@@ -16,9 +16,7 @@ defmodule AshDurableReactor.TestReactors.ApprovalFlow do
     end
   end
 
-  await_signal :approval do
-    signal :approval
-  end
+  await_resume :approval
 
   step :finalize do
     argument :seed, result(:seed)
@@ -31,6 +29,33 @@ defmodule AshDurableReactor.TestReactors.ApprovalFlow do
   end
 
   return :finalize
+end
+
+defmodule AshDurableReactor.TestSteps.CustomResumable do
+  use Reactor.Step
+  @behaviour AshDurableReactor.ResumableStep
+
+  @impl true
+  def run(_arguments, _context, _options) do
+    {:halt, %{awaiting: :custom_resume}}
+  end
+
+  @impl AshDurableReactor.ResumableStep
+  def resume(arguments, _context, _options, persisted_step) do
+    {:ok, "#{arguments.prefix}:#{persisted_step.resume_payload}"}
+  end
+end
+
+defmodule AshDurableReactor.TestReactors.CustomResumableFlow do
+  use Reactor, extensions: [AshDurableReactor]
+
+  input :prefix
+
+  step :approval, AshDurableReactor.TestSteps.CustomResumable do
+    argument :prefix, input(:prefix)
+  end
+
+  return :approval
 end
 
 defmodule AshDurableReactor.TestReactors.UndoFlow do

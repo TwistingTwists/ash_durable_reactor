@@ -85,6 +85,16 @@ defmodule AshDurableReactor.ReactorBuilder do
   end
 
   defp durable_mode(step) do
-    get_in(step.context, [:durable, :mode]) || :replayable
+    get_in(step.context, [:durable, :mode]) || if(resumable_step?(step), do: :resumable, else: :replayable)
   end
+
+  defp resumable_step?(%{impl: {module, _options}}) when is_atom(module) do
+    function_exported?(module, :resume, 4)
+  end
+
+  defp resumable_step?(%{impl: module}) when is_atom(module) do
+    function_exported?(module, :resume, 4)
+  end
+
+  defp resumable_step?(_step), do: false
 end

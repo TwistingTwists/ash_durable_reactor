@@ -1,24 +1,22 @@
-defmodule AshDurableReactor.Dsl.AwaitSignal do
+defmodule AshDurableReactor.Dsl.AwaitResume do
   @moduledoc false
 
   defstruct __identifier__: nil,
             __spark_metadata__: nil,
             description: nil,
-            name: nil,
-            signal: nil
+            name: nil
 
   @type t :: %__MODULE__{
           __identifier__: any,
           __spark_metadata__: Spark.Dsl.Entity.spark_meta(),
           description: String.t() | nil,
-          name: atom,
-          signal: atom
+          name: atom
         }
 
   def __entity__ do
     %Spark.Dsl.Entity{
-      name: :await_signal,
-      describe: "Halts a durable reactor until an external signal is recorded.",
+      name: :await_resume,
+      describe: "Halts a durable reactor until the step is explicitly resumed.",
       target: __MODULE__,
       identifier: :name,
       args: [:name],
@@ -28,11 +26,6 @@ defmodule AshDurableReactor.Dsl.AwaitSignal do
           type: :atom,
           required: true,
           doc: "Unique step name."
-        ],
-        signal: [
-          type: :atom,
-          required: false,
-          doc: "Signal identifier. Defaults to the step name."
         ],
         description: [
           type: :string,

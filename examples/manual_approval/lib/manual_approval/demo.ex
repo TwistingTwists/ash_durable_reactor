@@ -22,7 +22,7 @@ defmodule ManualApproval.Demo do
     IO.inspect(AshDurableReactor.get_run(run_id), label: "persisted run after halt")
     IO.inspect(AshDurableReactor.list_steps(run_id), label: "persisted steps after halt")
 
-    :ok = AshDurableReactor.signal(run_id, :manager_approval, %{approved_by: "manager-7"})
+    :ok = AshDurableReactor.resume_step(run_id, :manager_approval, %{approved_by: "manager-7"})
 
     second_result =
       AshDurableReactor.run(

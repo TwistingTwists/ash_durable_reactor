@@ -8,7 +8,7 @@ It currently provides:
 - wrapped step execution with persisted run and step state
 - an ETS-backed store for local development, tests, and examples
 - an Ash-backed store so persistence can be modeled as Ash resources and delegated to Ash data layers
-- an `await_signal` step for manual approval and other interruptible workflows
+- an `await_resume` step for manual approval and other interruptible workflows
 - a `AshDurableReactor.run/4` entrypoint that prepares and runs the durable reactor
 
 ## Ash-Backed Persistence
@@ -49,9 +49,7 @@ defmodule MyApp.ApprovalFlow do
     run fn %{amount: amount}, _ -> {:ok, %{amount: amount}} end
   end
 
-  await_signal :approval do
-    signal :manager_approval
-  end
+  await_resume :approval
 
   step :finalize do
     argument :charge, result(:build_charge)
@@ -65,7 +63,7 @@ run_id = "charge-123"
 AshDurableReactor.run(MyApp.ApprovalFlow, %{amount: 50}, %{request_id: "req-1"}, run_id: run_id)
 # => {:halted, reactor}
 
-AshDurableReactor.signal(run_id, :manager_approval, :approved)
+AshDurableReactor.resume_step(run_id, :approval, :approved)
 
 AshDurableReactor.run(MyApp.ApprovalFlow, %{amount: 50}, %{request_id: "req-1"}, run_id: run_id)
 # => {:ok, {%{amount: 50}, :approved}}

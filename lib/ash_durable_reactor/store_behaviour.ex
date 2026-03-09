@@ -18,7 +18,6 @@ defmodule AshDurableReactor.StoreBehaviour do
   @callback record_step_compensation(any, any, atom, any) :: :ok
   @callback record_step_undo(any, any, atom, any) :: :ok
   @callback append_event(any, any, atom, any) :: :ok
-  @callback put_signal(any, any, any) :: :ok | {:error, any}
-  @callback get_signal(any, any) :: {:ok, any} | :error
+  @callback resume_step(any, any, any) :: :ok | {:error, any}
   @callback reset!() :: :ok
 end

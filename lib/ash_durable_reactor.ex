@@ -12,7 +12,7 @@ defmodule AshDurableReactor do
     dsl_patches: [
       %Spark.Dsl.Patch.AddEntity{
         section_path: [:reactor],
-        entity: AshDurableReactor.Dsl.AwaitSignal.__entity__()
+        entity: AshDurableReactor.Dsl.AwaitResume.__entity__()
       }
     ],
     transformers: [
@@ -57,19 +57,12 @@ defmodule AshDurableReactor do
     |> Reactor.run(inputs, context, Keyword.put_new(options, :async?, false))
   end
 
-# {user_note}: reactor does not need to know anything about 'external signals' or anyhting like that . that is not a primitive we need. 
-# we need a primitive so that reactor can be 'woken up' and can goto 'sleep' 
-# for 'sleep' - we already have a 'halt' way to do that. halt can be due to success or failure. 
-# for 'wakeup' - we need a way to signal the reactor to wake up and continue execution from the step 
-# there are two ways to resume a reactor - 1) it  can always start from the top -> and flow through  all the durable steps -> arrive at a previously halted step -> check if condition is true -> then continue or halt again. 
-# 2) continue from the 'halted' step directly
-# so that way - need for signals is gone? as a separate 'primitive' - a step can be 'woken up' directly from the halted state
   @doc """
-  Record an external signal for an awaiting step.
+  Mark a halted step as resumable on the next replay.
   """
-  @spec signal(any, any, any, module) :: :ok | {:error, any}
-  def signal(run_id, signal_name, value, store \\ Store) do
-    store.put_signal(run_id, signal_name, value)
+  @spec resume_step(any, any, any, module) :: :ok | {:error, any}
+  def resume_step(run_id, step_name, value, store \\ Store) do
+    store.resume_step(run_id, step_name, value)
   end
 
   @doc """
@@ -89,6 +82,27 @@ defmodule AshDurableReactor do
   """
   @spec list_steps(any, module) :: [map]
   def list_steps(run_id, store \\ Store), do: store.list_steps(run_id)
+
+  @doc """
+  Fetch the persisted state for the currently executing durable step.
+  """
+  @spec current_step(Reactor.context()) :: map | nil
+  def current_step(context) when is_map(context) do
+    get_in(context, [__MODULE__, :current_step])
+  end
+
+  @doc """
+  Fetch the persisted resume payload for the currently executing durable step.
+  """
+  @spec resume_payload(Reactor.context()) :: any
+  def resume_payload(context) when is_map(context) do
+    context
+    |> current_step()
+    |> case do
+      nil -> nil
+      step -> Map.get(step, :resume_payload)
+    end
+  end
 
   @doc false
   def config_from_dsl_state(dsl_state) do

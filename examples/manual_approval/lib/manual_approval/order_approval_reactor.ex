@@ -17,9 +17,7 @@ defmodule ManualApproval.OrderApprovalReactor do
     end
   end
 
-  await_signal :manager_approval do
-    signal :manager_approval
-  end
+  await_resume :manager_approval
 
   step :capture_payment do
     argument :order, result(:load_order)

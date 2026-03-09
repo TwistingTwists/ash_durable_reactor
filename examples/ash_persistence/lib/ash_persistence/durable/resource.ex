@@ -73,6 +73,8 @@ defmodule AshPersistence.Durable.Resource do
         attribute :output, :map, public?: true
         attribute :error, :string, public?: true
         attribute :halt_payload, :map, public?: true
+        attribute :resume_payload, :map, public?: true
+        attribute :resumed_at, :utc_datetime_usec, public?: true
         attribute :compensation_payload, :map, public?: true
         attribute :undo_payload, :map, public?: true
         create_timestamp :inserted_at
@@ -99,6 +101,8 @@ defmodule AshPersistence.Durable.Resource do
             :output,
             :error,
             :halt_payload,
+            :resume_payload,
+            :resumed_at,
             :compensation_payload,
             :undo_payload
           ]
@@ -117,6 +121,8 @@ defmodule AshPersistence.Durable.Resource do
             :output,
             :error,
             :halt_payload,
+            :resume_payload,
+            :resumed_at,
             :compensation_payload,
             :undo_payload
           ]

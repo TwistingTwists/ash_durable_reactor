@@ -16,6 +16,8 @@ defmodule AshPersistence.SqliteRepo.Migrations.DurableSqliteBackend do
       add :halt_payload, :map
       add :error, :text
       add :output, :map
+      add :resumed_at, :utc_datetime_usec
+      add :resume_payload, :map
       add :inputs, :map, default: %{}
       add :mode, :text, null: false
       add :attempt, :bigint, null: false

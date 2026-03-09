@@ -92,27 +92,35 @@ defmodule AshDurableReactor.AshStore do
 
   @impl true
   def record_step_running(run_id, step_name, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :running}))
+    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :running, resume_payload: nil, resumed_at: nil}))
   end
 
   @impl true
   def record_step_success(run_id, step_name, output, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :succeeded, output: output}))
+    upsert_step(
+      run_id,
+      step_name,
+      Map.merge(attrs, %{status: :succeeded, output: output, halt_payload: nil, error: nil, resume_payload: nil, resumed_at: nil})
+    )
   end
 
   @impl true
   def record_step_halt(run_id, step_name, reason, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :halted, halt_payload: reason}))
+    upsert_step(
+      run_id,
+      step_name,
+      Map.merge(attrs, %{status: :halted, halt_payload: reason, output: nil, error: nil, resume_payload: nil, resumed_at: nil})
+    )
   end
 
   @impl true
   def record_step_retry(run_id, step_name, reason, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :retrying, error: inspect(reason)}))
+    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :failed, error: inspect(reason), resume_payload: nil, resumed_at: nil}))
   end
 
   @impl true
   def record_step_error(run_id, step_name, reason, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :failed, error: inspect(reason)}))
+    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :failed, error: inspect(reason), resume_payload: nil, resumed_at: nil}))
   end
 
   @impl true
@@ -149,15 +157,19 @@ defmodule AshDurableReactor.AshStore do
   end
 
   @impl true
-  def put_signal(run_id, signal_name, value) do
-    upsert_step(run_id, signal_key(signal_name), %{status: :signal, output: value, mode: :awaiting_external_input})
-  end
+  def resume_step(run_id, step_name, value) do
+    config = config!()
 
-  @impl true
-  def get_signal(run_id, signal_name) do
-    case get_step(run_id, signal_key(signal_name)) do
-      %{output: output} -> {:ok, output}
-      _ -> :error
+    case fetch_step_record(run_id, step_name, config) do
+      nil ->
+        {:error, :step_not_found}
+
+      %{status: "halted"} = step ->
+        update(step, %{resume_payload: value, resumed_at: DateTime.utc_now()}, config)
+        :ok
+
+      %{status: status} ->
+        {:error, {:step_not_halted, to_existing_atom(status)}}
     end
   end
 
@@ -194,7 +206,6 @@ defmodule AshDurableReactor.AshStore do
         next_attempt =
           case Map.get(attrs, :status) do
             :running -> (step.attempt || 0) + 1
-            :signal -> (step.attempt || 0) + 1
             _ -> step.attempt || 1
           end
 
@@ -264,8 +275,6 @@ defmodule AshDurableReactor.AshStore do
     |> Map.new()
   end
 
-  defp signal_key(signal_name), do: :"signal:#{signal_name}"
-
   defp run_to_map(run) do
     %{
       id: Map.get(run, :id),
@@ -299,6 +308,8 @@ defmodule AshDurableReactor.AshStore do
       output: step.output,
       error: step.error,
       halt_payload: step.halt_payload,
+      resume_payload: step.resume_payload,
+      resumed_at: Map.get(step, :resumed_at),
       compensation_payload: step.compensation_payload,
       undo_payload: step.undo_payload,
       inserted_at: Map.get(step, :inserted_at),

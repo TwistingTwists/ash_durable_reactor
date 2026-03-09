@@ -13,8 +13,8 @@ mix run -e "ManualApproval.Demo.run()"
 The script will:
 
 1. start a durable run
-2. halt waiting for a manager approval signal
-3. record the signal
+2. halt waiting for a manager approval step to be resumed
+3. mark the halted step as resumed
 4. resume the same run with the same `run_id`
 5. print the persisted run and step records
 

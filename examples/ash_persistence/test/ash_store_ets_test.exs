@@ -37,9 +37,9 @@ defmodule AshPersistence.AshStoreEtsTest do
     assert %{status: :succeeded} = AshDurableReactor.get_step(run_id, :load_order, AshDurableReactor.AshStore)
 
     assert :ok =
-             AshDurableReactor.signal(
+             AshDurableReactor.resume_step(
                run_id,
-               :manager_approval,
+               :approval,
                %{approved_by: "manager"},
                AshDurableReactor.AshStore
              )

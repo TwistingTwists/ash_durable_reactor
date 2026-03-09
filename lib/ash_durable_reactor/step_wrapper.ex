@@ -12,10 +12,22 @@ defmodule AshDurableReactor.StepWrapper do
     store = config.store
     run_id = context.run_id
     mode = Keyword.fetch!(options, :mode)
+    persisted_step = store.get_step(run_id, original_step.name)
 
-    case replay_result(store, run_id, original_step.name, mode) do
+    case replay_result(persisted_step, mode) do
       {:ok, output} ->
         {:ok, output}
+
+      {:halted, reason} ->
+        {:halt, reason}
+
+      {:resume, step_state} ->
+        attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
+        :ok = store.record_step_running(run_id, original_step.name, attrs)
+
+        original_step
+        |> resume_step(arguments, with_current_step(context, step_state))
+        |> handle_run_result(store, run_id, original_step, attrs, context, options)
 
       :miss ->
         attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
@@ -109,14 +121,17 @@ defmodule AshDurableReactor.StepWrapper do
     |> Reactor.Step.backoff(reason, arguments, context)
   end
 
-  defp replay_result(store, run_id, step_name, mode) when mode in [:replayable, :side_effect_once] do
-    case store.get_step(run_id, step_name) do
-      %{status: :succeeded, output: output} -> {:ok, output}
-      _ -> :miss
-    end
-  end
+  defp replay_result(%{status: :succeeded, output: output}, mode)
+       when mode in [:replayable, :resumable, :side_effect_once],
+       do: {:ok, output}
 
-  defp replay_result(_store, _run_id, _step_name, _mode), do: :miss
+  defp replay_result(%{status: :halted, halt_payload: reason, resume_payload: nil}, :resumable),
+    do: {:halted, reason}
+
+  defp replay_result(%{status: :halted, resume_payload: _payload} = persisted_step, :resumable),
+    do: {:resume, persisted_step}
+
+  defp replay_result(_persisted_step, _mode), do: :miss
 
   defp handle_run_result({:ok, value}, store, run_id, original_step, attrs, _context, _options) do
     :ok = store.record_step_success(run_id, original_step.name, value, attrs)
@@ -159,5 +174,23 @@ defmodule AshDurableReactor.StepWrapper do
       step_hash: :erlang.phash2({original_step.name, original_step.impl, original_step.arguments}),
       mode: mode
     }
+  end
+
+  defp resume_step(original_step, arguments, context) do
+    {module, options} = module_and_options(original_step)
+    persisted_step = AshDurableReactor.current_step(context)
+
+    if function_exported?(module, :resume, 4) do
+      module.resume(arguments, context, options, persisted_step)
+    else
+      Reactor.Step.run(original_step, arguments, context)
+    end
+  end
+
+  defp module_and_options(%{impl: {module, options}}), do: {module, options}
+  defp module_and_options(%{impl: module}), do: {module, []}
+
+  defp with_current_step(context, persisted_step) do
+    put_in(context, [AshDurableReactor, :current_step], persisted_step)
   end
 end

@@ -35,7 +35,7 @@ That is a strong precedent for durable-specific DSL primitives. If we add durabl
 
 Examples of useful future durable entities:
 
-- `await_signal`
+- `await_resume`
 - `persist_value`
 - `record_checkpoint`
 - `emit_event`
@@ -311,14 +311,14 @@ Recommended policies:
 
 - `mode: :replayable`
 - `mode: :ephemeral`
-- `mode: :awaiting_external_input`
+- `mode: :resumable`
 - `mode: :side_effect_once`
 
 Examples:
 
 - pure computation or Ash read steps: usually `:replayable`
 - process PIDs and sockets: usually `:ephemeral`
-- human approval steps: `:awaiting_external_input`
+- human approval steps: `:resumable`
 - non-idempotent external mutations: `:side_effect_once` with dedupe key support
 
 This is where durable Reactor goes beyond the original plan. The system should distinguish "cannot be re-materialized" from "can be replayed safely".
@@ -329,7 +329,7 @@ Borrowing the `reactor_req` style, v1 should keep the core runtime generic, but 
 
 The most valuable ones are:
 
-- `await_signal`
+- `await_resume`
 - `await_record`
 - `emit_step_event`
 - `checkpoint`
