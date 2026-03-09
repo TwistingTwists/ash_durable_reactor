@@ -3,18 +3,12 @@ defmodule AshDurableReactor do
   Durable execution support for Reactor.
 
   The extension wraps each step with a persistence-aware delegator, stores run
-  and step state in a pluggable store, and adds a small durable DSL surface for
-  halt/resume workflows.
+  and step state in a pluggable store, and keeps resumability on ordinary
+  Reactor step modules via `resume/4`.
   """
 
   use Spark.Dsl.Extension,
     sections: [AshDurableReactor.Dsl.Durable.section()],
-    dsl_patches: [
-      %Spark.Dsl.Patch.AddEntity{
-        section_path: [:reactor],
-        entity: AshDurableReactor.Dsl.AwaitResume.__entity__()
-      }
-    ],
     transformers: [
       AshDurableReactor.Transformers.ValidateConfig,
       AshDurableReactor.Transformers.AddMiddleware,

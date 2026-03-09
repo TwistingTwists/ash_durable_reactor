@@ -17,7 +17,9 @@ defmodule ManualApproval.OrderApprovalReactor do
     end
   end
 
-  await_resume :manager_approval
+  step :manager_approval, __MODULE__.ManagerApproval do
+    argument :order, result(:load_order)
+  end
 
   step :capture_payment do
     argument :order, result(:load_order)
@@ -29,4 +31,17 @@ defmodule ManualApproval.OrderApprovalReactor do
   end
 
   return :capture_payment
+
+  defmodule ManagerApproval do
+    use Reactor.Step
+
+    @impl true
+    def run(%{order: order}, _context, _options) do
+      {:halt, %{awaiting: :manager_approval, order_id: order.id}}
+    end
+
+    def resume(_arguments, _context, _options, persisted_step) do
+      {:ok, persisted_step.resume_payload}
+    end
+  end
 end

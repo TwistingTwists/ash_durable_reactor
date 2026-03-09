@@ -8,7 +8,7 @@ It currently provides:
 - wrapped step execution with persisted run and step state
 - an ETS-backed store for local development, tests, and examples
 - an Ash-backed store so persistence can be modeled as Ash resources and delegated to Ash data layers
-- an `await_resume` step for manual approval and other interruptible workflows
+- resumable ordinary Reactor step modules via `resume/4`
 - a `AshDurableReactor.run/4` entrypoint that prepares and runs the durable reactor
 
 ## Ash-Backed Persistence
@@ -54,12 +54,24 @@ defmodule MyApp.ApprovalFlow do
     run fn %{amount: amount}, _ -> {:ok, %{amount: amount}} end
   end
 
-  await_resume :approval
+  step :approval, MyApp.ApprovalStep do
+    argument :charge, result(:build_charge)
+  end
 
   step :finalize do
     argument :charge, result(:build_charge)
     argument :approval, result(:approval)
     run fn %{charge: charge, approval: approval}, _ -> {:ok, {charge, approval}} end
+  end
+end
+
+defmodule MyApp.ApprovalStep do
+  use Reactor.Step
+
+  def run(_arguments, _context, _options), do: {:halt, %{awaiting: :approval}}
+
+  def resume(_arguments, _context, _options, persisted_step) do
+    {:ok, persisted_step.resume_payload}
   end
 end
 
@@ -73,6 +85,19 @@ AshDurableReactor.resume_step(run_id, :approval, :approved)
 AshDurableReactor.run(MyApp.ApprovalFlow, %{amount: 50}, %{request_id: "req-1"}, run_id: run_id)
 # => {:ok, {%{amount: 50}, :approved}}
 ```
+
+## Persistence Contract
+
+The runtime persistence contract is intentionally step-local:
+
+- every durable run has a stable `run_id`
+- every step persists its resolved input arguments
+- every step persists its own output, halt payload, or error
+- downstream replay uses persisted outputs from upstream `run_id + step_name`
+- resumable steps stay ordinary Reactor steps and continue through `resume/4`
+
+That means you keep normal Reactor dependency wiring while durability lives at
+the step boundary.
 
 ## Running The Tests
 

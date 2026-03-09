@@ -58,39 +58,36 @@ defmodule AccountabilityWorkflow.Reactor do
   input :config
   input :phase
 
-  step :extract_inputs do
+  step :extract_inputs, AccountabilityWorkflow.Steps.ExtractInputs do
     argument :config, input(:config)
-    run AccountabilityWorkflow.Steps.ExtractInputs
   end
 
-  step :read_weekly_checkin do
+  step :read_weekly_checkin, AccountabilityWorkflow.Steps.ReadWeeklyCheckin do
     argument :config, input(:config)
     argument :inputs, result(:extract_inputs)
-    run AccountabilityWorkflow.Steps.ReadWeeklyCheckin
   end
 
-  step :build_message do
+  step :build_message, AccountabilityWorkflow.Steps.BuildMessage do
     argument :phase, input(:phase)
     argument :inputs, result(:extract_inputs)
     argument :week_data, result(:read_weekly_checkin)
-    run AccountabilityWorkflow.Steps.BuildMessage
   end
 
-  step :send_message do
+  step :send_message, AccountabilityWorkflow.Steps.SendMessage do
     argument :message, result(:build_message)
-    run AccountabilityWorkflow.Steps.SendMessage
   end
 
-  await_resume :checkin_reply
+  step :checkin_reply, AccountabilityWorkflow.Steps.CheckinReply do
+    argument :delivery, result(:send_message)
+  end
 
-  step :record_checkin do
+  step :record_checkin, AccountabilityWorkflow.Steps.RecordCheckin do
     argument :config, input(:config)
     argument :phase, input(:phase)
     argument :week_data, result(:read_weekly_checkin)
     argument :message, result(:build_message)
     argument :delivery, result(:send_message)
     argument :reply, result(:checkin_reply)
-    run AccountabilityWorkflow.Steps.RecordCheckin
   end
 
   return :record_checkin
@@ -116,6 +113,14 @@ For each step execution, it should persist:
 - the step output if it succeeds
 - the halt payload if it halts
 - the error if it fails
+
+In brief, the persistence contract that needs to stay tight is:
+
+1. a stable `run_id` across every replay and resume
+2. a stable step identity, at minimum `run_id + step_name`
+3. persisted resolved arguments for the current step
+4. persisted output, halt payload, or error for that step
+5. replay lookup for upstream `result(:step_name)` from persisted step outputs
 
 That is enough to make step replay and resumability work without changing how
 the step is declared.

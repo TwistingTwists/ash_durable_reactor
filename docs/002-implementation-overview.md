@@ -9,7 +9,7 @@ The core library extends Reactor at the runtime boundary instead of treating dur
 - a Reactor extension and DSL for durable configuration
 - middleware and step wrapping so persistence and replay happen at step boundaries
 - persisted run state, step state, undo metadata, and compensation metadata
-- halt and resume support through a resumable wait step (`await_resume`)
+- halt and resume support through ordinary Reactor step modules that implement `resume/4`
 
 The main validated entrypoint is `AshDurableReactor.run/4`, which prepares a durable reactor, executes it synchronously by default, and replays previously completed steps when the same `run_id` is resumed.
 

@@ -36,7 +36,9 @@ defmodule AshPersistence.Reactors.ApprovalTemplate do
         end
       end
 
-      await_resume :approval
+      step :approval, AshPersistence.Reactors.ApprovalStep do
+        argument :order, result(:load_order)
+      end
 
       step :capture_payment do
         argument :order, result(:load_order)

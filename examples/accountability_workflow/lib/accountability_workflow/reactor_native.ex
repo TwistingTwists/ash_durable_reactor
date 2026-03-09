@@ -211,7 +211,6 @@ defmodule AccountabilityWorkflow.ReactorNative do
 
   defmodule CheckinReply do
     use Reactor.Step
-    @behaviour AshDurableReactor.ResumableStep
 
     @impl true
     def run(%{delivery: delivery, message_context: message_context}, _context, _opts) do
@@ -223,7 +222,6 @@ defmodule AccountabilityWorkflow.ReactorNative do
        }}
     end
 
-    @impl AshDurableReactor.ResumableStep
     def resume(_arguments, _context, _opts, persisted_step) do
       {:ok, persisted_step.resume_payload}
     end
