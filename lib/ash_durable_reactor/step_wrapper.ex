@@ -151,11 +151,27 @@ defmodule AshDurableReactor.StepWrapper do
     {:ok, value}
   end
 
-  defp handle_run_result({:ok, value, steps}, store, run_id, original_step, attrs, context, _options)
+  defp handle_run_result(
+         {:ok, value, steps},
+         store,
+         run_id,
+         original_step,
+         attrs,
+         context,
+         _options
+       )
        when is_list(steps) do
     durable_context = context[AshDurableReactor]
     wrapped_steps = Enum.map(steps, &ReactorBuilder.wrap_dynamic_step(&1, durable_context))
-    :ok = store.record_step_success(run_id, original_step.name, value, Map.put(attrs, :dynamic_steps, length(steps)))
+
+    :ok =
+      store.record_step_success(
+        run_id,
+        original_step.name,
+        value,
+        Map.put(attrs, :dynamic_steps, length(steps))
+      )
+
     {:ok, value, wrapped_steps}
   end
 
@@ -169,12 +185,28 @@ defmodule AshDurableReactor.StepWrapper do
     :retry
   end
 
-  defp handle_run_result({:retry, reason}, store, run_id, original_step, attrs, _context, _options) do
+  defp handle_run_result(
+         {:retry, reason},
+         store,
+         run_id,
+         original_step,
+         attrs,
+         _context,
+         _options
+       ) do
     :ok = store.record_step_retry(run_id, original_step.name, reason, attrs)
     {:retry, reason}
   end
 
-  defp handle_run_result({:error, reason}, store, run_id, original_step, attrs, _context, _options) do
+  defp handle_run_result(
+         {:error, reason},
+         store,
+         run_id,
+         original_step,
+         attrs,
+         _context,
+         _options
+       ) do
     :ok = store.record_step_error(run_id, original_step.name, reason, attrs)
     {:error, reason}
   end
@@ -184,7 +216,8 @@ defmodule AshDurableReactor.StepWrapper do
       config: config.store_config,
       inputs: arguments,
       step_impl: inspect(original_step.impl),
-      step_hash: :erlang.phash2({original_step.name, original_step.impl, original_step.arguments}),
+      step_hash:
+        :erlang.phash2({original_step.name, original_step.impl, original_step.arguments}),
       mode: mode
     }
   end

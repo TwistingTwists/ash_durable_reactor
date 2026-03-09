@@ -49,7 +49,12 @@ defmodule AshDurableReactor.ReactorBuilder do
 
   @spec wrap_dynamic_step(Reactor.Step.t(), map, keyword) :: Reactor.Step.t()
   def wrap_dynamic_step(step, durable_context, opts \\ []) do
-    wrap_step(step, durable_context.reactor_module, durable_context.config, Keyword.get(opts, :dynamic?, true))
+    wrap_step(
+      step,
+      durable_context.reactor_module,
+      durable_context.config,
+      Keyword.get(opts, :dynamic?, true)
+    )
   end
 
   defp wrap_step(step, reactor_module, %Config{} = config, dynamic? \\ false) do
@@ -97,7 +102,8 @@ defmodule AshDurableReactor.ReactorBuilder do
   end
 
   defp durable_mode(step) do
-    get_in(step.context, [:durable, :mode]) || if(resumable_step?(step), do: :resumable, else: :replayable)
+    get_in(step.context, [:durable, :mode]) ||
+      if(resumable_step?(step), do: :resumable, else: :replayable)
   end
 
   defp resumable_step?(%{impl: {module, _options}}) when is_atom(module) do

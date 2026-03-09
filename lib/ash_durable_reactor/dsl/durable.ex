@@ -3,8 +3,7 @@ defmodule AshDurableReactor.Dsl.Durable do
   Defines the `durable do ... end` extension section.
 
   This section configures run-level durability concerns such as which store to
-  use, which context keys should be persisted, and which resume strategy the
-  runtime should apply.
+  use and which resume strategy the runtime should apply.
   """
 
   def section do
@@ -25,20 +24,18 @@ defmodule AshDurableReactor.Dsl.Durable do
           doc: "Adapter-specific configuration, for example Ash domain and resource modules."
         ],
         sqlite: [
-          type: {:keyword_list, [repo: [type: :module, required: true], otp_app: [type: :atom, required: false]]},
+          type:
+            {:keyword_list,
+             [repo: [type: :module, required: true], otp_app: [type: :atom, required: false]]},
           required: false,
           doc: "Opt into the built-in AshSqlite durable store wiring."
         ],
         postgres: [
-          type: {:keyword_list, [repo: [type: :module, required: true], otp_app: [type: :atom, required: false]]},
+          type:
+            {:keyword_list,
+             [repo: [type: :module, required: true], otp_app: [type: :atom, required: false]]},
           required: false,
           doc: "Opt into the built-in AshPostgres durable store wiring."
-        ],
-        persist_context: [
-          type: {:list, :atom},
-          required: false,
-          default: [],
-          doc: "Context keys copied into the run record."
         ],
         default_async?: [
           type: :boolean,

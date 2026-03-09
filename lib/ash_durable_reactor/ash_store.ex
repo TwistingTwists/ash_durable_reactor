@@ -28,7 +28,7 @@ defmodule AshDurableReactor.AshStore do
     case fetch_run_record(attrs.run_id, config) do
       nil ->
         attrs
-        |> Map.take([:run_id, :reactor_hash, :reactor_module, :inputs, :persisted_context])
+        |> Map.take([:run_id, :reactor_hash, :reactor_module, :inputs])
         |> Map.put(:status, :running)
         |> create(config.run_resource, config)
         |> case do
@@ -38,7 +38,7 @@ defmodule AshDurableReactor.AshStore do
 
       existing ->
         if existing.reactor_hash == attrs.reactor_hash do
-          update(existing, %{status: :running, inputs: attrs.inputs, persisted_context: attrs.persisted_context}, config)
+          update(existing, %{status: :running, inputs: attrs.inputs}, config)
           {:ok, run_to_map(fetch_run_record!(attrs.run_id, config))}
         else
           {:error, {:reactor_version_mismatch, existing.reactor_hash, attrs.reactor_hash}}
@@ -92,7 +92,11 @@ defmodule AshDurableReactor.AshStore do
 
   @impl true
   def record_step_running(run_id, step_name, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :running, resume_payload: nil, resumed_at: nil}))
+    upsert_step(
+      run_id,
+      step_name,
+      Map.merge(attrs, %{status: :running, resume_payload: nil, resumed_at: nil})
+    )
   end
 
   @impl true
@@ -100,7 +104,14 @@ defmodule AshDurableReactor.AshStore do
     upsert_step(
       run_id,
       step_name,
-      Map.merge(attrs, %{status: :succeeded, output: output, halt_payload: nil, error: nil, resume_payload: nil, resumed_at: nil})
+      Map.merge(attrs, %{
+        status: :succeeded,
+        output: output,
+        halt_payload: nil,
+        error: nil,
+        resume_payload: nil,
+        resumed_at: nil
+      })
     )
   end
 
@@ -109,18 +120,43 @@ defmodule AshDurableReactor.AshStore do
     upsert_step(
       run_id,
       step_name,
-      Map.merge(attrs, %{status: :halted, halt_payload: reason, output: nil, error: nil, resume_payload: nil, resumed_at: nil})
+      Map.merge(attrs, %{
+        status: :halted,
+        halt_payload: reason,
+        output: nil,
+        error: nil,
+        resume_payload: nil,
+        resumed_at: nil
+      })
     )
   end
 
   @impl true
   def record_step_retry(run_id, step_name, reason, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :failed, error: inspect(reason), resume_payload: nil, resumed_at: nil}))
+    upsert_step(
+      run_id,
+      step_name,
+      Map.merge(attrs, %{
+        status: :failed,
+        error: inspect(reason),
+        resume_payload: nil,
+        resumed_at: nil
+      })
+    )
   end
 
   @impl true
   def record_step_error(run_id, step_name, reason, attrs) do
-    upsert_step(run_id, step_name, Map.merge(attrs, %{status: :failed, error: inspect(reason), resume_payload: nil, resumed_at: nil}))
+    upsert_step(
+      run_id,
+      step_name,
+      Map.merge(attrs, %{
+        status: :failed,
+        error: inspect(reason),
+        resume_payload: nil,
+        resumed_at: nil
+      })
+    )
   end
 
   @impl true
@@ -283,7 +319,6 @@ defmodule AshDurableReactor.AshStore do
       reactor_module: run.reactor_module,
       status: to_existing_atom(run.status),
       inputs: run.inputs,
-      persisted_context: run.persisted_context,
       result: run.result,
       error: run.error,
       halt_reason: run.halt_reason,

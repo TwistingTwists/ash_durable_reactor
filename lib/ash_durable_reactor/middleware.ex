@@ -22,20 +22,18 @@ defmodule AshDurableReactor.Middleware do
     run_id = context.run_id
     store = config.store
     inputs = get_in(context, [:private, :inputs]) || %{}
-    persisted_context = Map.take(context, config.persist_context)
 
     attrs = %{
       run_id: run_id,
       reactor_hash: durable.reactor_hash,
       reactor_module: durable.reactor_module,
       config: config.store_config,
-      inputs: inputs,
-      persisted_context: persisted_context
+      inputs: inputs
     }
 
     case store.start_run(attrs) do
       {:ok, _run} ->
-        {:ok, put_in(context, [AshDurableReactor, :persisted_context], persisted_context)}
+        {:ok, context}
 
       {:error, reason} ->
         {:error, ArgumentError.exception("unable to start durable run: #{inspect(reason)}")}
@@ -46,6 +44,7 @@ defmodule AshDurableReactor.Middleware do
   def halt(context) do
     store = context[AshDurableReactor].config.store
     run_id = context.run_id
+
     reason =
       run_id
       |> store.list_steps()

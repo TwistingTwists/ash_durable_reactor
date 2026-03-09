@@ -44,7 +44,7 @@ defmodule AshDurableReactor.Store do
           true ->
             run =
               existing
-              |> Map.merge(Map.take(attrs, [:inputs, :persisted_context]))
+              |> Map.merge(Map.take(attrs, [:inputs]))
               |> Map.put(:status, :running)
               |> Map.update(:attempt, 1, &(&1 + 1))
               |> Map.put(:updated_at, DateTime.utc_now())
@@ -207,7 +207,15 @@ defmodule AshDurableReactor.Store do
   @impl true
   def append_event(run_id, step_name, event_type, payload) do
     id = :erlang.unique_integer([:positive, :monotonic])
-    event = %{id: id, run_id: run_id, step_name: step_name, event_type: event_type, payload: payload}
+
+    event = %{
+      id: id,
+      run_id: run_id,
+      step_name: step_name,
+      event_type: event_type,
+      payload: payload
+    }
+
     true = :ets.insert(@events, {run_id, event})
     :ok
   end

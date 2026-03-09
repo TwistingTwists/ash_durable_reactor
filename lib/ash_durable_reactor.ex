@@ -19,7 +19,8 @@ defmodule AshDurableReactor do
   alias AshDurableReactor.{Config, ReactorBuilder, Store}
   alias Reactor.Info
 
-  @type run_result :: {:ok, any} | {:ok, any, Reactor.t()} | {:error, any} | {:halted, Reactor.t()}
+  @type run_result ::
+          {:ok, any} | {:ok, any, Reactor.t()} | {:error, any} | {:halted, Reactor.t()}
 
   @doc """
   Prepare a Reactor module or struct with durable wrapping.
@@ -101,13 +102,12 @@ defmodule AshDurableReactor do
 
   @doc false
   def config_from_dsl_state(dsl_state) do
-    %{store: store, store_config: store_config} = AshDurableReactor.Backend.resolve_from_dsl_state!(dsl_state)
+    %{store: store, store_config: store_config} =
+      AshDurableReactor.Backend.resolve_from_dsl_state!(dsl_state)
 
     %Config{
       store: store,
       store_config: store_config,
-      persist_context:
-        Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :persist_context) || [],
       default_async?:
         Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :default_async?) || false,
       max_concurrency:
@@ -122,12 +122,12 @@ defmodule AshDurableReactor do
   end
 
   defp config_from_module(module) do
-    %{store: store, store_config: store_config} = AshDurableReactor.Backend.resolve_from_module(module)
+    %{store: store, store_config: store_config} =
+      AshDurableReactor.Backend.resolve_from_module(module)
 
     %Config{
       store: store,
       store_config: store_config,
-      persist_context: Spark.Dsl.Extension.get_opt(module, [:durable], :persist_context, []),
       default_async?: Spark.Dsl.Extension.get_opt(module, [:durable], :default_async?, false),
       max_concurrency: Spark.Dsl.Extension.get_opt(module, [:durable], :max_concurrency, 1),
       durable_undo?: Spark.Dsl.Extension.get_opt(module, [:durable], :durable_undo?, true),
