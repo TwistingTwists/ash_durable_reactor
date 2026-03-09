@@ -24,3 +24,7 @@ ash_durable_reactor-*.tar
 
 # Generated output files
 out.md
+
+# Environment files
+.envrc
+examples/**/.envrc
