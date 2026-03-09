@@ -82,6 +82,8 @@ There are runnable examples in:
 - `examples/manual_approval`
 - `examples/ash_persistence`
 
+Run the Ash persistence example with `cd examples/ash_persistence && mix ash_sqlite.create && mix ash_sqlite.migrate && mix run -e "AshPersistence.Demo.run_sqlite()"`.
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
