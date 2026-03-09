@@ -1,5 +1,11 @@
 defmodule AshDurableReactor.Transformers.ValidateConfig do
-  @moduledoc false
+  @moduledoc """
+  Spark transformer that validates durable store configuration.
+
+  At compile time it checks that the configured store module looks like a valid
+  durable persistence adapter so the extension can fail fast with a DSL error
+  instead of producing a broken runtime.
+  """
 
   use Spark.Dsl.Transformer
 

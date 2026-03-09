@@ -1,5 +1,12 @@
 defmodule AshDurableReactor.Dsl.AwaitResume do
-  @moduledoc false
+  @moduledoc """
+  DSL entity for a resumable wait step.
+
+  `await_resume` is a small convenience primitive that compiles to a normal
+  durable step. Its first execution halts, and later executions can complete
+  once `AshDurableReactor.resume_step/4` has written a resume payload onto the
+  halted step record.
+  """
 
   defstruct __identifier__: nil,
             __spark_metadata__: nil,

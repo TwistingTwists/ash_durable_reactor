@@ -1,5 +1,11 @@
 defmodule AshDurableReactor.Transformers.AddMiddleware do
-  @moduledoc false
+  @moduledoc """
+  Spark transformer that injects the durable middleware automatically.
+
+  This keeps durable setup declarative: users opt into the extension and the
+  required middleware is added for them instead of relying on manual reactor
+  configuration.
+  """
 
   use Spark.Dsl.Transformer
 

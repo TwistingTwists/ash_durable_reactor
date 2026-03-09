@@ -1,5 +1,17 @@
 defmodule AshDurableReactor.Middleware do
-  @moduledoc false
+  @moduledoc """
+  Reactor middleware responsible for run-level durable state.
+
+  The middleware owns lifecycle concerns that apply to the entire run rather
+  than to a single step:
+
+  - create or load the durable run record at startup
+  - persist the final run outcome on halt, success, or failure
+  - append lightweight lifecycle events for observability
+
+  Step-level checkpointing is handled separately by
+  `AshDurableReactor.StepWrapper`.
+  """
 
   use Reactor.Middleware
 

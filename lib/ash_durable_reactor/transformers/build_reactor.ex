@@ -1,5 +1,12 @@
 defmodule AshDurableReactor.Transformers.BuildReactor do
-  @moduledoc false
+  @moduledoc """
+  Spark transformer that materializes the durable reactor struct.
+
+  After the normal Reactor DSL transformer runs, this transformer converts the
+  DSL state into a `Reactor.t()`, applies durable wrapping through
+  `AshDurableReactor.ReactorBuilder`, and persists the final struct onto the
+  caller module via `reactor/0`.
+  """
 
   use Spark.Dsl.Transformer
 

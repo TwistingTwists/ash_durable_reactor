@@ -1,5 +1,18 @@
 defmodule AshDurableReactor.StepWrapper do
-  @moduledoc false
+  @moduledoc """
+  Persistence-aware wrapper around normal Reactor steps.
+
+  Every durable step runs through this wrapper. It is responsible for:
+
+  - loading any persisted checkpoint for the current `run_id + step_name`
+  - returning stored outputs for replayable successful steps
+  - halting resumable steps until a resume payload is written
+  - dispatching to a step's custom `resume/4` callback when present
+  - persisting run, halt, retry, compensation, and undo outcomes back to the store
+
+  This module is the main execution boundary where Reactor step semantics are
+  translated into durable checkpoints.
+  """
 
   use Reactor.Step
 

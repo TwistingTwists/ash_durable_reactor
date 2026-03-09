@@ -1,5 +1,17 @@
 defmodule AshDurableReactor.ReactorBuilder do
-  @moduledoc false
+  @moduledoc """
+  Prepares a plain Reactor struct for durable execution.
+
+  The builder is the point where the extension becomes concrete runtime
+  behavior. It wraps every step with `AshDurableReactor.StepWrapper`, injects
+  the durable middleware, computes a stable reactor hash, and replans the graph
+  after those transformations.
+
+  It also infers step durability mode:
+
+  - `:replayable` for normal checkpointed steps
+  - `:resumable` for steps whose implementation exports `resume/4`
+  """
 
   alias AshDurableReactor.{Config, Middleware, StepWrapper}
   alias Reactor.Planner

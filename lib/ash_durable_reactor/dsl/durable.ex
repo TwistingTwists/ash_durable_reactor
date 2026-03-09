@@ -1,5 +1,11 @@
 defmodule AshDurableReactor.Dsl.Durable do
-  @moduledoc false
+  @moduledoc """
+  Defines the `durable do ... end` extension section.
+
+  This section configures run-level durability concerns such as which store to
+  use, which context keys should be persisted, and which resume strategy the
+  runtime should apply.
+  """
 
   def section do
     %Spark.Dsl.Section{
