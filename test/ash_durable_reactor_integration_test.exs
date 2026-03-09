@@ -3,7 +3,13 @@ defmodule AshDurableReactorIntegrationTest do
 
   alias AshDurableReactor.Store
   alias AshDurableReactor.TestCounter
-  alias AshDurableReactor.TestReactors.{ApprovalFlow, CompensationFlow, CustomResumableFlow, UndoFlow}
+
+  alias AshDurableReactor.TestReactors.{
+    ApprovalFlow,
+    CompensationFlow,
+    CustomResumableFlow,
+    UndoFlow
+  }
 
   setup_all do
     start_supervised!(TestCounter)
@@ -33,7 +39,9 @@ defmodule AshDurableReactorIntegrationTest do
 
     assert %{status: :halted} = Store.get_run(run_id)
     assert %{status: :succeeded, output: 6} = Store.get_step(run_id, :seed)
-    assert %{status: :halted, halt_payload: %{awaiting: :approval}} = Store.get_step(run_id, :approval)
+
+    assert %{status: :halted, halt_payload: %{awaiting: :approval}} =
+             Store.get_step(run_id, :approval)
 
     assert :ok = AshDurableReactor.resume_step(run_id, :approval, "approved")
 
