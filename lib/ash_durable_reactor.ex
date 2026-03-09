@@ -57,6 +57,13 @@ defmodule AshDurableReactor do
     |> Reactor.run(inputs, context, Keyword.put_new(options, :async?, false))
   end
 
+# {user_note}: reactor does not need to know anything about 'external signals' or anyhting like that . that is not a primitive we need. 
+# we need a primitive so that reactor can be 'woken up' and can goto 'sleep' 
+# for 'sleep' - we already have a 'halt' way to do that. halt can be due to success or failure. 
+# for 'wakeup' - we need a way to signal the reactor to wake up and continue execution from the step 
+# there are two ways to resume a reactor - 1) it  can always start from the top -> and flow through  all the durable steps -> arrive at a previously halted step -> check if condition is true -> then continue or halt again. 
+# 2) continue from the 'halted' step directly
+# so that way - need for signals is gone? as a separate 'primitive' - a step can be 'woken up' directly from the halted state
   @doc """
   Record an external signal for an awaiting step.
   """
