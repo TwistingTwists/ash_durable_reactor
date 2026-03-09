@@ -21,3 +21,6 @@ ash_durable_reactor-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Generated output files
+out.md
