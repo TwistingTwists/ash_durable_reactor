@@ -5,7 +5,6 @@ defmodule AshDurableReactor.Dsl.Durable do
     %Spark.Dsl.Section{
       name: :durable,
       describe: "Configure durable execution for the surrounding reactor.",
-      top_level?: true,
       schema: [
         store: [
           type: :module,

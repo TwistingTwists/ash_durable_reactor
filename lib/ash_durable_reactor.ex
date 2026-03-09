@@ -31,17 +31,19 @@ defmodule AshDurableReactor do
   """
   @spec prepare_reactor(module | Reactor.t()) :: Reactor.t()
   def prepare_reactor(reactor_or_module) do
-    reactor =
+    {reactor, config, reactor_module} =
       case reactor_or_module do
-        module when is_atom(module) -> module.reactor()
-        %Reactor{} = reactor -> reactor
+        module when is_atom(module) ->
+          {Info.to_struct!(module), config_from_module(module), module}
+
+        %Reactor{} = reactor ->
+          {reactor, %Config{}, reactor.id}
       end
 
     if Map.has_key?(reactor.context, __MODULE__) do
       reactor
     else
-      config = %Config{}
-      ReactorBuilder.build!(reactor, reactor.id, config)
+      ReactorBuilder.build!(reactor, reactor_module, config)
     end
   end
 
@@ -97,6 +99,19 @@ defmodule AshDurableReactor do
         Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :durable_compensation?) != false,
       resume_strategy:
         Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :resume_strategy) || :replay
+    }
+  end
+
+  defp config_from_module(module) do
+    %Config{
+      store: Spark.Dsl.Extension.get_opt(module, [:durable], :store, Store),
+      persist_context: Spark.Dsl.Extension.get_opt(module, [:durable], :persist_context, []),
+      default_async?: Spark.Dsl.Extension.get_opt(module, [:durable], :default_async?, false),
+      max_concurrency: Spark.Dsl.Extension.get_opt(module, [:durable], :max_concurrency, 1),
+      durable_undo?: Spark.Dsl.Extension.get_opt(module, [:durable], :durable_undo?, true),
+      durable_compensation?:
+        Spark.Dsl.Extension.get_opt(module, [:durable], :durable_compensation?, true),
+      resume_strategy: Spark.Dsl.Extension.get_opt(module, [:durable], :resume_strategy, :replay)
     }
   end
 end

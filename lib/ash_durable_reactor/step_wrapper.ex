@@ -38,6 +38,7 @@ defmodule AshDurableReactor.StepWrapper do
     case result do
       {:continue, value} ->
         :ok = store.record_step_compensation(run_id, original_step.name, :succeeded, value)
+        :ok = store.record_step_success(run_id, original_step.name, value, %{})
         {:continue, value}
 
       :ok ->
