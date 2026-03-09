@@ -44,7 +44,6 @@ defmodule MyApp.ApprovalFlow do
 
   durable do
     sqlite repo: MyApp.Repo
-    persist_context [:request_id]
   end
 
   input :amount
@@ -77,12 +76,12 @@ end
 
 run_id = "charge-123"
 
-AshDurableReactor.run(MyApp.ApprovalFlow, %{amount: 50}, %{request_id: "req-1"}, run_id: run_id)
+AshDurableReactor.run(MyApp.ApprovalFlow, %{amount: 50}, %{}, run_id: run_id)
 # => {:halted, reactor}
 
 AshDurableReactor.resume_step(run_id, :approval, :approved)
 
-AshDurableReactor.run(MyApp.ApprovalFlow, %{amount: 50}, %{request_id: "req-1"}, run_id: run_id)
+AshDurableReactor.run(MyApp.ApprovalFlow, %{amount: 50}, %{}, run_id: run_id)
 # => {:ok, {%{amount: 50}, :approved}}
 ```
 

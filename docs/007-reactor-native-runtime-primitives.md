@@ -186,7 +186,6 @@ It needs enough data to anchor execution:
 - `reactor_module`
 - `status`
 - original run inputs
-- persisted context
 - final result
 - final error
 

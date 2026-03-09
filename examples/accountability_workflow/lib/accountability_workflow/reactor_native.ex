@@ -16,10 +16,6 @@ defmodule AccountabilityWorkflow.ReactorNative do
 
   use Reactor, extensions: [AshDurableReactor]
 
-  durable do
-    persist_context [:agent_name, :trigger_type]
-  end
-
   input :config
   input :phase
 

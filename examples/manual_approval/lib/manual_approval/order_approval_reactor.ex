@@ -1,10 +1,6 @@
 defmodule ManualApproval.OrderApprovalReactor do
   use Reactor, extensions: [AshDurableReactor]
 
-  durable do
-    persist_context [:request_id]
-  end
-
   input :order_id
   input :amount
 

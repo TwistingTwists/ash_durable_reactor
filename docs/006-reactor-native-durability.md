@@ -192,7 +192,6 @@ The run record needs to carry:
 - `reactor_module`
 - `status`
 - original run inputs
-- persisted context
 - final result
 - final error
 

@@ -20,8 +20,6 @@ defmodule AshPersistence.Reactors.ApprovalTemplate do
           store AshDurableReactor.AshStore
           store_config store_config
         end
-
-        persist_context [:request_id]
       end
 
       input :order_id

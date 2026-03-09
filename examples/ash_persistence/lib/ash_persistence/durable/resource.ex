@@ -10,7 +10,6 @@ defmodule AshPersistence.Durable.Resource do
         attribute :reactor_module, :string, allow_nil?: false, public?: true
         attribute :status, :string, allow_nil?: false, public?: true
         attribute :inputs, :map, default: %{}, public?: true
-        attribute :persisted_context, :map, default: %{}, public?: true
         attribute :result, :map, public?: true
         attribute :error, :string, public?: true
         attribute :halt_reason, :map, public?: true
@@ -33,7 +32,6 @@ defmodule AshPersistence.Durable.Resource do
             :reactor_module,
             :status,
             :inputs,
-            :persisted_context,
             :result,
             :error,
             :halt_reason,
@@ -47,7 +45,6 @@ defmodule AshPersistence.Durable.Resource do
           accept [
             :status,
             :inputs,
-            :persisted_context,
             :result,
             :error,
             :halt_reason,
