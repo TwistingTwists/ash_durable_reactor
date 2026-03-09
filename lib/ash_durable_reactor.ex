@@ -87,6 +87,8 @@ defmodule AshDurableReactor do
   def config_from_dsl_state(dsl_state) do
     %Config{
       store: Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :store) || Store,
+      store_config:
+        Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :store_config) || [],
       persist_context:
         Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :persist_context) || [],
       default_async?:
@@ -105,6 +107,7 @@ defmodule AshDurableReactor do
   defp config_from_module(module) do
     %Config{
       store: Spark.Dsl.Extension.get_opt(module, [:durable], :store, Store),
+      store_config: Spark.Dsl.Extension.get_opt(module, [:durable], :store_config, []),
       persist_context: Spark.Dsl.Extension.get_opt(module, [:durable], :persist_context, []),
       default_async?: Spark.Dsl.Extension.get_opt(module, [:durable], :default_async?, false),
       max_concurrency: Spark.Dsl.Extension.get_opt(module, [:durable], :max_concurrency, 1),

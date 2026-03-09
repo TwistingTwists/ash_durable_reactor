@@ -12,6 +12,12 @@ defmodule AshDurableReactor.Dsl.Durable do
           default: AshDurableReactor.Store,
           doc: "Persistence adapter implementing `AshDurableReactor.StoreBehaviour`."
         ],
+        store_config: [
+          type: :keyword_list,
+          required: false,
+          default: [],
+          doc: "Adapter-specific configuration, for example Ash domain and resource modules."
+        ],
         persist_context: [
           type: {:list, :atom},
           required: false,

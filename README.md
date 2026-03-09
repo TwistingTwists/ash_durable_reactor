@@ -7,8 +7,30 @@ It currently provides:
 - a Reactor extension with a `durable do ... end` config block
 - wrapped step execution with persisted run and step state
 - an ETS-backed store for local development, tests, and examples
+- an Ash-backed store so persistence can be modeled as Ash resources and delegated to Ash data layers
 - an `await_signal` step for manual approval and other interruptible workflows
 - a `AshDurableReactor.run/4` entrypoint that prepares and runs the durable reactor
+
+## Ash-Backed Persistence
+
+If you want persistence to be an Ash concern instead of a library concern, use
+`AshDurableReactor.AshStore` and point it at Ash resources:
+
+```elixir
+durable do
+  store AshDurableReactor.AshStore
+
+  store_config [
+    domain: MyApp.Durable,
+    run_resource: MyApp.Durable.Run,
+    step_resource: MyApp.Durable.Step,
+    event_resource: MyApp.Durable.Event
+  ]
+end
+```
+
+Those resources can use `Ash.DataLayer.Ets`, `AshSqlite.DataLayer`, or
+`AshPostgres.DataLayer`.
 
 ## Quick Example
 
@@ -57,7 +79,10 @@ mix test
 
 ## Example App
 
-There is a runnable end-to-end example in `examples/manual_approval`.
+There are runnable examples in:
+
+- `examples/manual_approval`
+- `examples/ash_persistence`
 
 ## Installation
 

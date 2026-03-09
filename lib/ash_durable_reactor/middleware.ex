@@ -16,6 +16,7 @@ defmodule AshDurableReactor.Middleware do
       run_id: run_id,
       reactor_hash: durable.reactor_hash,
       reactor_module: durable.reactor_module,
+      config: config.store_config,
       inputs: inputs,
       persisted_context: persisted_context
     }
@@ -68,11 +69,14 @@ defmodule AshDurableReactor.Middleware do
         context.run_id,
         step.name,
         classify_event(event),
-        event
+        normalize_event_payload(event)
       )
   end
 
   defp classify_event({name, _payload}) when is_atom(name), do: name
   defp classify_event(name) when is_atom(name), do: name
   defp classify_event(_), do: :unknown
+
+  defp normalize_event_payload(payload) when is_map(payload), do: payload
+  defp normalize_event_payload(payload), do: %{event: inspect(payload)}
 end

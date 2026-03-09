@@ -18,7 +18,7 @@ defmodule AshDurableReactor.StepWrapper do
         {:ok, output}
 
       :miss ->
-        attrs = step_attrs(arguments, original_step, mode)
+        attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
         :ok = store.record_step_running(run_id, original_step.name, attrs)
 
         original_step
@@ -151,8 +151,9 @@ defmodule AshDurableReactor.StepWrapper do
     {:error, reason}
   end
 
-  defp step_attrs(arguments, original_step, mode) do
+  defp step_attrs(arguments, original_step, mode, config) do
     %{
+      config: config.store_config,
       inputs: arguments,
       step_impl: inspect(original_step.impl),
       step_hash: :erlang.phash2({original_step.name, original_step.impl, original_step.arguments}),
