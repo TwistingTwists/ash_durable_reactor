@@ -24,6 +24,16 @@ defmodule AshDurableReactor.Dsl.Durable do
           default: [],
           doc: "Adapter-specific configuration, for example Ash domain and resource modules."
         ],
+        sqlite: [
+          type: {:keyword_list, [repo: [type: :module, required: true], otp_app: [type: :atom, required: false]]},
+          required: false,
+          doc: "Opt into the built-in AshSqlite durable store wiring."
+        ],
+        postgres: [
+          type: {:keyword_list, [repo: [type: :module, required: true], otp_app: [type: :atom, required: false]]},
+          required: false,
+          doc: "Opt into the built-in AshPostgres durable store wiring."
+        ],
         persist_context: [
           type: {:list, :atom},
           required: false,

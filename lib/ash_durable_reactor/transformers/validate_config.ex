@@ -13,8 +13,25 @@ defmodule AshDurableReactor.Transformers.ValidateConfig do
 
   @impl true
   def transform(dsl_state) do
-    store = Spark.Dsl.Transformer.get_option(dsl_state, [:durable], :store) || AshDurableReactor.Store
     module = Spark.Dsl.Transformer.get_persisted(dsl_state, :module)
+
+    store =
+      case AshDurableReactor.Backend.resolve_from_dsl_state(dsl_state) do
+        {:ok, %{store: store}} ->
+          store
+
+        {:error, :multiple_backends} ->
+          return_backend_error(
+            module,
+            "Choose only one durable backend. `sqlite` and `postgres` cannot both be configured."
+          )
+
+        {:error, :mixed_backend_and_manual_store} ->
+          return_backend_error(
+            module,
+            "Backend shortcuts cannot be combined with manual `store` or `store_config` options."
+          )
+      end
 
     if Code.ensure_loaded?(store) and function_exported?(store, :start_run, 1) do
       {:ok, dsl_state}
@@ -26,5 +43,9 @@ defmodule AshDurableReactor.Transformers.ValidateConfig do
          message: "Store #{inspect(store)} does not implement AshDurableReactor.StoreBehaviour"
        )}
     end
+  end
+
+  defp return_backend_error(module, message) do
+    raise DslError.exception(module: module, path: [:durable], message: message)
   end
 end
