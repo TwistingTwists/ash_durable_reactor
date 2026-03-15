@@ -33,15 +33,28 @@ defmodule AshDurableReactor.Transformers.ValidateConfig do
           )
       end
 
-    if Code.ensure_loaded?(store) and function_exported?(store, :start_run, 1) do
-      {:ok, dsl_state}
-    else
-      {:error,
-       DslError.exception(
-         module: module,
-         path: [:durable, :store],
-         message: "Store #{inspect(store)} does not implement AshDurableReactor.StoreBehaviour"
-       )}
+    case Code.ensure_compiled(store) do
+      {:module, _} ->
+        if function_exported?(store, :start_run, 1) do
+          {:ok, dsl_state}
+        else
+          {:error,
+           DslError.exception(
+             module: module,
+             path: [:durable, :store],
+             message:
+               "Store #{inspect(store)} does not implement AshDurableReactor.StoreBehaviour"
+           )}
+        end
+
+      {:error, reason} ->
+        {:error,
+         DslError.exception(
+           module: module,
+           path: [:durable, :store],
+           message:
+             "Store #{inspect(store)} could not be compiled: #{inspect(reason)}"
+         )}
     end
   end
 

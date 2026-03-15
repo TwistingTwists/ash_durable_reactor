@@ -104,23 +104,24 @@ the step boundary.
 mix test
 ```
 
-## Example App
+## Examples
 
-The canonical runnable example is `examples/ash_persistence`.
+Five runnable examples live under `examples/`:
 
-Run the SQLite-backed demo with:
+| Example | What it shows |
+|---------|---------------|
+| `accountability_workflow` | Multi-step workflow with halt/resume via Telegram stub |
+| `ash_persistence` | Ash-backed persistence with ETS and SQLite data layers |
+| `compose_workflow` | Parent→child reactor composition with durable replay |
+| `manual_approval` | Full halt/resume flow for a human approval step |
+| `recurse_revision_loop` | `recurse` loop with durable replay of the final result |
+
+Each example works out of the box:
 
 ```bash
 cd examples/ash_persistence
-mix ash_sqlite.create
-mix ash_sqlite.migrate
+mix deps.get
 mix run -e "AshPersistence.Demo.run_sqlite()"
-```
-
-For zero-setup local execution, run the ETS-backed Ash demo with:
-
-```bash
-cd examples/ash_persistence
 mix run -e "AshPersistence.Demo.run_ets()"
 ```
 
@@ -132,7 +133,7 @@ by adding `ash_durable_reactor` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ash_durable_reactor, "~> 0.1.0"}
+    {:ash_durable_reactor, "~> 0.2.0"}
   ]
 end
 ```

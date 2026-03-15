@@ -1,10 +1,10 @@
-defmodule AshDurableReactor.MixProject do
+defmodule ComposeWorkflow.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ash_durable_reactor,
-      version: "0.2.0",
+      app: :compose_workflow,
+      version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -12,21 +12,18 @@ defmodule AshDurableReactor.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger],
-      mod: {AshDurableReactor.Application, []}
+      mod: {ComposeWorkflow.Application, []}
     ]
   end
 
   defp deps do
     [
-      {:reactor, "~> 1.0"},
-      {:ash, "~> 3.19"}
+      {:ash_durable_reactor, path: "../.."}
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 end

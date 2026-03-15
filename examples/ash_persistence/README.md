@@ -9,32 +9,33 @@ Included backends:
 - ETS via `Ash.DataLayer.Ets`
 - Postgres via `AshPostgres.DataLayer`
 
-## Active Codegen Target
-
-The checked-in migrations are generated from the SQLite resources.
-
-From this directory:
-
-```bash
-mix ash.codegen durable_sqlite_backend
-mix ash_sqlite.create
-mix ash_sqlite.migrate
-```
-
 ## Run The Demos
 
-ETS requires no database setup:
+Both demos work out of the box after fetching dependencies:
+
+```bash
+mix deps.get
+```
+
+ETS (in-memory, no database needed):
 
 ```bash
 mix run -e "AshPersistence.Demo.run_ets()"
 ```
 
-SQLite uses the generated migrations:
+SQLite (auto-creates the database and runs migrations on first use):
 
 ```bash
-mix ash_sqlite.create
-mix ash_sqlite.migrate
 mix run -e "AshPersistence.Demo.run_sqlite()"
+```
+
+## Regenerating Migrations
+
+The checked-in migrations live in `priv/sqlite_repo/migrations/` and are
+generated from the SQLite resources. To regenerate after schema changes:
+
+```bash
+mix ash.codegen durable_sqlite_backend
 ```
 
 ## Switching To Postgres

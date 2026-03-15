@@ -46,7 +46,15 @@ defmodule AshDurableReactor.Store do
               existing
               |> Map.merge(Map.take(attrs, [:inputs]))
               |> Map.put(:status, :running)
-              |> Map.update(:attempt, 1, &(&1 + 1))
+              # Only bump attempt when transitioning from a non-running state.
+              # A :running → :running transition means a compose/recurse sub-reactor
+              # is re-entering the same run; the Middleware guards this at a higher
+              # level, but the store enforces it defensively too.
+              |> then(fn run ->
+                if existing[:status] == :running,
+                  do: run,
+                  else: Map.update(run, :attempt, 1, &(&1 + 1))
+              end)
               |> Map.put(:updated_at, DateTime.utc_now())
 
             true = :ets.insert(@runs, {run_id, run})

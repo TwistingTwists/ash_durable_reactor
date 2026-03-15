@@ -23,6 +23,7 @@ defmodule AshPersistence.Demo do
       event_resource: AshPersistence.Durable.Sqlite.Event
     )
 
+    ensure_sqlite_ready()
     run_demo(SqliteApprovalFlow, fresh_run_id("sqlite-demo"))
   end
 
@@ -66,6 +67,17 @@ defmodule AshPersistence.Demo do
         ] do
       Ash.DataLayer.Ets.stop(resource)
     end
+  end
+
+  defp ensure_sqlite_ready do
+    repo = AshPersistence.SqliteRepo
+
+    repo.__adapter__().storage_up(repo.config())
+
+    migrations_path =
+      Application.app_dir(:ash_persistence, "priv/sqlite_repo/migrations")
+
+    Ecto.Migrator.run(repo, migrations_path, :up, all: true, log: false)
   end
 
   defp fresh_run_id(prefix) do

@@ -21,56 +21,78 @@ defmodule AshDurableReactor.Middleware do
     config = durable.config
     run_id = context.run_id
     store = config.store
-    inputs = get_in(context, [:private, :inputs]) || %{}
 
-    attrs = %{
-      run_id: run_id,
-      reactor_hash: durable.reactor_hash,
-      reactor_module: durable.reactor_module,
-      config: config.store_config,
-      inputs: inputs
-    }
+    # If the run is already :running, we are inside a compose/recurse
+    # sub-reactor. Skip start_run and mark context so that complete/halt/error
+    # also become no-ops for this inner reactor.
+    case store.get_run(run_id) do
+      %{status: :running} ->
+        {:ok, put_in(context, [AshDurableReactor, :sub_reactor?], true)}
 
-    case store.start_run(attrs) do
-      {:ok, _run} ->
-        {:ok, context}
+      _ ->
+        inputs = get_in(context, [:private, :inputs]) || %{}
 
-      {:error, reason} ->
-        {:error, ArgumentError.exception("unable to start durable run: #{inspect(reason)}")}
+        attrs = %{
+          run_id: run_id,
+          reactor_hash: durable.reactor_hash,
+          reactor_module: durable.reactor_module,
+          config: config.store_config,
+          inputs: inputs
+        }
+
+        case store.start_run(attrs) do
+          {:ok, _run} ->
+            {:ok, context}
+
+          {:error, reason} ->
+            {:error, ArgumentError.exception("unable to start durable run: #{inspect(reason)}")}
+        end
     end
   end
 
   @impl true
   def halt(context) do
-    store = context[AshDurableReactor].config.store
-    run_id = context.run_id
+    if context[AshDurableReactor][:sub_reactor?] do
+      {:ok, context}
+    else
+      store = context[AshDurableReactor].config.store
+      run_id = context.run_id
 
-    reason =
-      run_id
-      |> store.list_steps()
-      |> Enum.reverse()
-      |> Enum.find_value(fn
-        %{status: :halted, step_name: step_name, halt_payload: payload} ->
-          %{step: step_name, payload: payload}
+      reason =
+        run_id
+        |> store.list_steps()
+        |> Enum.reverse()
+        |> Enum.find_value(fn
+          %{status: :halted, step_name: step_name, halt_payload: payload} ->
+            %{step: step_name, payload: payload}
 
-        _step ->
-          nil
-      end)
+          _step ->
+            nil
+        end)
 
-    :ok = store.halt_run(run_id, reason || %{step: nil})
-    {:ok, context}
+      :ok = store.halt_run(run_id, reason || %{step: nil})
+      {:ok, context}
+    end
   end
 
   @impl true
   def complete(result, context) do
-    :ok = context[AshDurableReactor].config.store.complete_run(context.run_id, result)
-    {:ok, result}
+    if context[AshDurableReactor][:sub_reactor?] do
+      {:ok, result}
+    else
+      :ok = context[AshDurableReactor].config.store.complete_run(context.run_id, result)
+      {:ok, result}
+    end
   end
 
   @impl true
   def error(error, context) do
-    :ok = context[AshDurableReactor].config.store.fail_run(context.run_id, error)
-    :ok
+    if context[AshDurableReactor][:sub_reactor?] do
+      :ok
+    else
+      :ok = context[AshDurableReactor].config.store.fail_run(context.run_id, error)
+      :ok
+    end
   end
 
   @impl true

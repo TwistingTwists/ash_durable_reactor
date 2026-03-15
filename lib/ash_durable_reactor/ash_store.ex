@@ -38,7 +38,16 @@ defmodule AshDurableReactor.AshStore do
 
       existing ->
         if existing.reactor_hash == attrs.reactor_hash do
-          update(existing, %{status: :running, inputs: attrs.inputs}, config)
+          # Only bump attempt when transitioning from a non-running state.
+          # See Middleware.init for the primary guard against sub-reactor re-entry.
+          update_attrs = %{status: :running, inputs: attrs.inputs}
+
+          update_attrs =
+            if existing.status in ["running", :running],
+              do: update_attrs,
+              else: Map.put(update_attrs, :attempt, (existing.attempt || 0) + 1)
+
+          update(existing, update_attrs, config)
           {:ok, run_to_map(fetch_run_record!(attrs.run_id, config))}
         else
           {:error, {:reactor_version_mismatch, existing.reactor_hash, attrs.reactor_hash}}
@@ -48,7 +57,7 @@ defmodule AshDurableReactor.AshStore do
 
   @impl true
   def complete_run(run_id, result) do
-    update_run(run_id, %{status: :succeeded, result: result})
+    update_run(run_id, %{status: :succeeded, result: result, completed_at: DateTime.utc_now()})
   end
 
   @impl true
@@ -58,7 +67,7 @@ defmodule AshDurableReactor.AshStore do
 
   @impl true
   def fail_run(run_id, reason) do
-    update_run(run_id, %{status: :failed, error: inspect(reason)})
+    update_run(run_id, %{status: :failed, error: inspect(reason), completed_at: DateTime.utc_now()})
   end
 
   @impl true
@@ -95,7 +104,7 @@ defmodule AshDurableReactor.AshStore do
     upsert_step(
       run_id,
       step_name,
-      Map.merge(attrs, %{status: :running, resume_payload: nil, resumed_at: nil})
+      Map.merge(attrs, %{status: :running, resume_payload: nil, resumed_at: nil, started_at: DateTime.utc_now()})
     )
   end
 
@@ -110,7 +119,8 @@ defmodule AshDurableReactor.AshStore do
         halt_payload: nil,
         error: nil,
         resume_payload: nil,
-        resumed_at: nil
+        resumed_at: nil,
+        completed_at: DateTime.utc_now()
       })
     )
   end
@@ -154,7 +164,8 @@ defmodule AshDurableReactor.AshStore do
         status: :failed,
         error: inspect(reason),
         resume_payload: nil,
-        resumed_at: nil
+        resumed_at: nil,
+        completed_at: DateTime.utc_now()
       })
     )
   end
