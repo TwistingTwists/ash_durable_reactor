@@ -22,5 +22,8 @@ ash_persistence-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
-# Generated local Ash/AshSqlite artifacts.
-/priv/
+# Generated SQLite database files.
+/priv/sqlite/
+
+# Generated Ash resource snapshots.
+/priv/resource_snapshots/
