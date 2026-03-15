@@ -38,7 +38,16 @@ defmodule AshDurableReactor.AshStore do
 
       existing ->
         if existing.reactor_hash == attrs.reactor_hash do
-          update(existing, %{status: :running, inputs: attrs.inputs}, config)
+          # Only bump attempt when transitioning from a non-running state.
+          # See Middleware.init for the primary guard against sub-reactor re-entry.
+          update_attrs = %{status: :running, inputs: attrs.inputs}
+
+          update_attrs =
+            if existing.status in ["running", :running],
+              do: update_attrs,
+              else: Map.put(update_attrs, :attempt, (existing.attempt || 0) + 1)
+
+          update(existing, update_attrs, config)
           {:ok, run_to_map(fetch_run_record!(attrs.run_id, config))}
         else
           {:error, {:reactor_version_mismatch, existing.reactor_hash, attrs.reactor_hash}}
