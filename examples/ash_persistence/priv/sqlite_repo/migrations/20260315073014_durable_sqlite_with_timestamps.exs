@@ -1,4 +1,4 @@
-defmodule AshPersistence.SqliteRepo.Migrations.DurableSqliteBackend do
+defmodule AshPersistence.SqliteRepo.Migrations.DurableSqliteWithTimestamps do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
@@ -11,6 +11,8 @@ defmodule AshPersistence.SqliteRepo.Migrations.DurableSqliteBackend do
     create table(:durable_steps, primary_key: false) do
       add :updated_at, :utc_datetime_usec, null: false
       add :inserted_at, :utc_datetime_usec, null: false
+      add :completed_at, :utc_datetime_usec
+      add :started_at, :utc_datetime_usec
       add :undo_payload, :map
       add :compensation_payload, :map
       add :resumed_at, :utc_datetime_usec
@@ -36,6 +38,7 @@ defmodule AshPersistence.SqliteRepo.Migrations.DurableSqliteBackend do
     create table(:durable_runs, primary_key: false) do
       add :updated_at, :utc_datetime_usec, null: false
       add :inserted_at, :utc_datetime_usec, null: false
+      add :completed_at, :utc_datetime_usec
       add :attempt, :bigint, null: false
       add :halt_reason, :map
       add :error, :text

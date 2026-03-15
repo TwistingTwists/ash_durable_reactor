@@ -48,7 +48,7 @@ defmodule AshDurableReactor.AshStore do
 
   @impl true
   def complete_run(run_id, result) do
-    update_run(run_id, %{status: :succeeded, result: result})
+    update_run(run_id, %{status: :succeeded, result: result, completed_at: DateTime.utc_now()})
   end
 
   @impl true
@@ -58,7 +58,7 @@ defmodule AshDurableReactor.AshStore do
 
   @impl true
   def fail_run(run_id, reason) do
-    update_run(run_id, %{status: :failed, error: inspect(reason)})
+    update_run(run_id, %{status: :failed, error: inspect(reason), completed_at: DateTime.utc_now()})
   end
 
   @impl true
@@ -95,7 +95,7 @@ defmodule AshDurableReactor.AshStore do
     upsert_step(
       run_id,
       step_name,
-      Map.merge(attrs, %{status: :running, resume_payload: nil, resumed_at: nil})
+      Map.merge(attrs, %{status: :running, resume_payload: nil, resumed_at: nil, started_at: DateTime.utc_now()})
     )
   end
 
@@ -110,7 +110,8 @@ defmodule AshDurableReactor.AshStore do
         halt_payload: nil,
         error: nil,
         resume_payload: nil,
-        resumed_at: nil
+        resumed_at: nil,
+        completed_at: DateTime.utc_now()
       })
     )
   end
@@ -154,7 +155,8 @@ defmodule AshDurableReactor.AshStore do
         status: :failed,
         error: inspect(reason),
         resume_payload: nil,
-        resumed_at: nil
+        resumed_at: nil,
+        completed_at: DateTime.utc_now()
       })
     )
   end

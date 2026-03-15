@@ -14,6 +14,7 @@ defmodule AshDurableReactor.Backends.Resource do
         attribute(:error, :string, public?: true)
         attribute(:halt_reason, :map, public?: true)
         attribute(:attempt, :integer, default: 1, allow_nil?: false, public?: true)
+        attribute(:completed_at, :utc_datetime_usec, public?: true)
         create_timestamp(:inserted_at)
         update_timestamp(:updated_at)
       end
@@ -35,7 +36,8 @@ defmodule AshDurableReactor.Backends.Resource do
             :result,
             :error,
             :halt_reason,
-            :attempt
+            :attempt,
+            :completed_at
           ])
         end
 
@@ -48,7 +50,8 @@ defmodule AshDurableReactor.Backends.Resource do
             :result,
             :error,
             :halt_reason,
-            :attempt
+            :attempt,
+            :completed_at
           ])
         end
       end
@@ -74,6 +77,8 @@ defmodule AshDurableReactor.Backends.Resource do
         attribute(:resumed_at, :utc_datetime_usec, public?: true)
         attribute(:compensation_payload, :map, public?: true)
         attribute(:undo_payload, :map, public?: true)
+        attribute(:started_at, :utc_datetime_usec, public?: true)
+        attribute(:completed_at, :utc_datetime_usec, public?: true)
         create_timestamp(:inserted_at)
         update_timestamp(:updated_at)
       end
@@ -101,7 +106,9 @@ defmodule AshDurableReactor.Backends.Resource do
             :resume_payload,
             :resumed_at,
             :compensation_payload,
-            :undo_payload
+            :undo_payload,
+            :started_at,
+            :completed_at
           ])
         end
 
@@ -121,7 +128,9 @@ defmodule AshDurableReactor.Backends.Resource do
             :resume_payload,
             :resumed_at,
             :compensation_payload,
-            :undo_payload
+            :undo_payload,
+            :started_at,
+            :completed_at
           ])
         end
       end
