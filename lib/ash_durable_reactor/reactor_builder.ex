@@ -58,29 +58,34 @@ defmodule AshDurableReactor.ReactorBuilder do
   end
 
   defp wrap_step(step, reactor_module, %Config{} = config, dynamic? \\ false) do
-    if wrapped_step?(step) do
-      step
-    else
-      mode = durable_mode(step)
-      original_async? = step.async?
+    cond do
+      wrapped_step?(step) -> step
+      compose_or_switch_step?(step) -> step
+      true ->
+        mode = durable_mode(step)
+        original_async? = step.async?
 
-      %{
-        step
-        | impl:
-            {StepWrapper,
-             original_step: step,
-             reactor_module: reactor_module,
-             config: config,
-             mode: mode,
-             original_async?: original_async?,
-             dynamic?: dynamic?},
-          async?: config.default_async?
-      }
+        %{
+          step
+          | impl:
+              {StepWrapper,
+               original_step: step,
+               reactor_module: reactor_module,
+               config: config,
+               mode: mode,
+               original_async?: original_async?,
+               dynamic?: dynamic?},
+            async?: config.default_async?
+        }
     end
   end
 
   defp wrapped_step?(%{impl: {StepWrapper, _opts}}), do: true
   defp wrapped_step?(_step), do: false
+
+  defp compose_or_switch_step?(%{impl: {Reactor.Step.Compose, _}}), do: true
+  defp compose_or_switch_step?(%{impl: {Reactor.Step.Switch, _}}), do: true
+  defp compose_or_switch_step?(_), do: false
 
   defp ensure_middleware(reactor, middleware) do
     if middleware in reactor.middleware do

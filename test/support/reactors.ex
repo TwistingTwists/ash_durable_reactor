@@ -93,3 +93,98 @@ defmodule AshDurableReactor.TestReactors.CompensationFlow do
 
   return(:fragile)
 end
+
+defmodule AshDurableReactor.TestSteps.CountedDouble do
+  use Reactor.Step
+
+  @impl true
+  def run(%{value: value}, _context, _options) do
+    AshDurableReactor.TestCounter.bump(:counted_double)
+    {:ok, value * 2}
+  end
+end
+
+defmodule AshDurableReactor.TestSteps.CountedAddOne do
+  use Reactor.Step
+
+  @impl true
+  def run(%{value: value}, _context, _options) do
+    AshDurableReactor.TestCounter.bump(:counted_add_one)
+    {:ok, value + 1}
+  end
+end
+
+defmodule AshDurableReactor.TestReactors.SubReactor do
+  use Reactor, extensions: [AshDurableReactor]
+
+  input :value
+
+  step :doubled, AshDurableReactor.TestSteps.CountedDouble do
+    argument :value, input(:value)
+  end
+
+  step :plus_one, AshDurableReactor.TestSteps.CountedAddOne do
+    argument :value, result(:doubled)
+  end
+
+  return :plus_one
+end
+
+defmodule AshDurableReactor.TestReactors.ComposeFlow do
+  use Reactor, extensions: [AshDurableReactor]
+
+  input :start_value
+
+  compose :sub_calculation, AshDurableReactor.TestReactors.SubReactor do
+    argument :value, input(:start_value)
+  end
+
+  step :finalize do
+    argument :value, result(:sub_calculation)
+
+    run fn %{value: v}, _ctx ->
+      AshDurableReactor.TestCounter.bump(:finalize)
+      {:ok, %{result: v, source: :composed}}
+    end
+  end
+
+  return :finalize
+end
+
+defmodule AshDurableReactor.TestReactors.SwitchFlow do
+  use Reactor, extensions: [AshDurableReactor]
+
+  input :action
+  input :value
+
+  switch :route do
+    on input(:action)
+
+    matches? fn action -> action == :double end do
+      step :do_double, AshDurableReactor.TestSteps.CountedDouble do
+        argument :value, input(:value)
+      end
+
+      return :do_double
+    end
+
+    matches? fn action -> action == :add_one end do
+      step :do_add, AshDurableReactor.TestSteps.CountedAddOne do
+        argument :value, input(:value)
+      end
+
+      return :do_add
+    end
+
+    default do
+      step :passthrough do
+        argument :value, input(:value)
+        run fn %{value: v}, _ctx -> {:ok, v} end
+      end
+
+      return :passthrough
+    end
+  end
+
+  return :route
+end
