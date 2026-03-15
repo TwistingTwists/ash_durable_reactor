@@ -9,6 +9,8 @@ defmodule AshDurableReactor.StepWrapper do
   - halting resumable steps until a resume payload is written
   - dispatching to a step's custom `resume/4` callback when present
   - persisting run, halt, retry, compensation, and undo outcomes back to the store
+  - handling recurse steps with iteration-aware persistence so that only
+    the final result is cached, and intermediate iterations always re-run
 
   This module is the main execution boundary where Reactor step semantics are
   translated into durable checkpoints.
@@ -25,30 +27,11 @@ defmodule AshDurableReactor.StepWrapper do
     store = config.store
     run_id = context.run_id
     mode = Keyword.fetch!(options, :mode)
-    persisted_step = store.get_step(run_id, original_step.name)
 
-    case replay_result(persisted_step, mode) do
-      {:ok, output} ->
-        {:ok, output}
-
-      {:halted, reason} ->
-        {:halt, reason}
-
-      {:resume, step_state} ->
-        attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
-        :ok = store.record_step_running(run_id, original_step.name, attrs)
-
-        original_step
-        |> resume_step(arguments, with_current_step(context, step_state))
-        |> handle_run_result(store, run_id, original_step, attrs, context, options)
-
-      :miss ->
-        attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
-        :ok = store.record_step_running(run_id, original_step.name, attrs)
-
-        original_step
-        |> Reactor.Step.run(arguments, context)
-        |> handle_run_result(store, run_id, original_step, attrs, context, options)
+    if recurse_step?(original_step) do
+      run_recurse_step(arguments, context, options, original_step, store, run_id, mode)
+    else
+      run_normal_step(arguments, context, options, original_step, store, run_id, mode)
     end
   end
 
@@ -57,29 +40,30 @@ defmodule AshDurableReactor.StepWrapper do
     original_step = Keyword.fetch!(options, :original_step)
     store = Keyword.fetch!(options, :config).store
     run_id = context.run_id
+    store_key = step_store_key(original_step.name, context)
 
     result = Reactor.Step.compensate(original_step, reason, arguments, context)
 
     case result do
       {:continue, value} ->
-        :ok = store.record_step_compensation(run_id, original_step.name, :succeeded, value)
-        :ok = store.record_step_success(run_id, original_step.name, value, %{})
+        :ok = store.record_step_compensation(run_id, store_key, :succeeded, value)
+        :ok = store.record_step_success(run_id, store_key, value, %{})
         {:continue, value}
 
       :ok ->
-        :ok = store.record_step_compensation(run_id, original_step.name, :compensated, reason)
+        :ok = store.record_step_compensation(run_id, store_key, :compensated, reason)
         :ok
 
       :retry ->
-        :ok = store.record_step_compensation(run_id, original_step.name, :retrying, reason)
+        :ok = store.record_step_compensation(run_id, store_key, :retrying, reason)
         :retry
 
       {:retry, retry_reason} ->
-        :ok = store.record_step_compensation(run_id, original_step.name, :retrying, retry_reason)
+        :ok = store.record_step_compensation(run_id, store_key, :retrying, retry_reason)
         {:retry, retry_reason}
 
       {:error, error} ->
-        :ok = store.record_step_compensation(run_id, original_step.name, :failed, error)
+        :ok = store.record_step_compensation(run_id, store_key, :failed, error)
         {:error, error}
     end
   end
@@ -89,24 +73,25 @@ defmodule AshDurableReactor.StepWrapper do
     original_step = Keyword.fetch!(options, :original_step)
     store = Keyword.fetch!(options, :config).store
     run_id = context.run_id
+    store_key = step_store_key(original_step.name, context)
 
     result = Reactor.Step.undo(original_step, value, arguments, context)
 
     case result do
       :ok ->
-        :ok = store.record_step_undo(run_id, original_step.name, :undone, value)
+        :ok = store.record_step_undo(run_id, store_key, :undone, value)
         :ok
 
       :retry ->
-        :ok = store.record_step_undo(run_id, original_step.name, :undo_retry, value)
+        :ok = store.record_step_undo(run_id, store_key, :undo_retry, value)
         :retry
 
       {:retry, reason} ->
-        :ok = store.record_step_undo(run_id, original_step.name, :undo_retry, reason)
+        :ok = store.record_step_undo(run_id, store_key, :undo_retry, reason)
         {:retry, reason}
 
       {:error, error} ->
-        :ok = store.record_step_undo(run_id, original_step.name, :undo_failed, error)
+        :ok = store.record_step_undo(run_id, store_key, :undo_failed, error)
         {:error, error}
     end
   end
@@ -134,6 +119,67 @@ defmodule AshDurableReactor.StepWrapper do
     |> Reactor.Step.backoff(reason, arguments, context)
   end
 
+  defp recurse_step?(%{impl: {Reactor.Step.Recurse, _}}), do: true
+  defp recurse_step?(_), do: false
+
+  defp recurse_iteration(%{impl: {Reactor.Step.Recurse, opts}}) do
+    opts[:current_iteration] || 0
+  end
+
+  defp step_store_key(step_name, context) do
+    case get_in(context, [AshDurableReactor, :recurse_iteration]) do
+      nil -> step_name
+      iteration -> {step_name, :recurse_iter, iteration}
+    end
+  end
+
+  defp run_recurse_step(arguments, context, options, original_step, store, run_id, mode) do
+    case replay_result(store.get_step(run_id, original_step.name), mode) do
+      {:ok, output} ->
+        {:ok, output}
+
+      _ ->
+        iteration = recurse_iteration(original_step)
+        context = put_in(context, [AshDurableReactor, :recurse_iteration], iteration)
+
+        attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
+        :ok = store.record_step_running(run_id, original_step.name, attrs)
+
+        original_step
+        |> Reactor.Step.run(arguments, context)
+        |> handle_recurse_result(store, run_id, original_step, attrs, context, options)
+    end
+  end
+
+  defp run_normal_step(arguments, context, options, original_step, store, run_id, mode) do
+    store_key = step_store_key(original_step.name, context)
+    persisted_step = store.get_step(run_id, store_key)
+
+    case replay_result(persisted_step, mode) do
+      {:ok, output} ->
+        {:ok, output}
+
+      {:halted, reason} ->
+        {:halt, reason}
+
+      {:resume, step_state} ->
+        attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
+        :ok = store.record_step_running(run_id, store_key, attrs)
+
+        original_step
+        |> resume_step(arguments, with_current_step(context, step_state))
+        |> handle_run_result(store, run_id, store_key, attrs, context, options)
+
+      :miss ->
+        attrs = step_attrs(arguments, original_step, mode, Keyword.fetch!(options, :config))
+        :ok = store.record_step_running(run_id, store_key, attrs)
+
+        original_step
+        |> Reactor.Step.run(arguments, context)
+        |> handle_run_result(store, run_id, store_key, attrs, context, options)
+    end
+  end
+
   defp replay_result(%{status: :succeeded, output: output}, mode)
        when mode in [:replayable, :resumable, :side_effect_once],
        do: {:ok, output}
@@ -146,8 +192,32 @@ defmodule AshDurableReactor.StepWrapper do
 
   defp replay_result(_persisted_step, _mode), do: :miss
 
-  defp handle_run_result({:ok, value}, store, run_id, original_step, attrs, _context, _options) do
+  defp handle_recurse_result({:ok, value}, store, run_id, original_step, attrs, _context, _options) do
     :ok = store.record_step_success(run_id, original_step.name, value, attrs)
+    {:ok, value}
+  end
+
+  defp handle_recurse_result(
+         {:ok, value, steps},
+         _store,
+         _run_id,
+         _original_step,
+         _attrs,
+         context,
+         _options
+       )
+       when is_list(steps) do
+    durable_context = context[AshDurableReactor]
+    wrapped_steps = Enum.map(steps, &ReactorBuilder.wrap_dynamic_step(&1, durable_context))
+    {:ok, value, wrapped_steps}
+  end
+
+  defp handle_recurse_result(other, store, run_id, original_step, attrs, context, options) do
+    handle_run_result(other, store, run_id, original_step.name, attrs, context, options)
+  end
+
+  defp handle_run_result({:ok, value}, store, run_id, store_key, attrs, _context, _options) do
+    :ok = store.record_step_success(run_id, store_key, value, attrs)
     {:ok, value}
   end
 
@@ -155,7 +225,7 @@ defmodule AshDurableReactor.StepWrapper do
          {:ok, value, steps},
          store,
          run_id,
-         original_step,
+         store_key,
          attrs,
          context,
          _options
@@ -167,7 +237,7 @@ defmodule AshDurableReactor.StepWrapper do
     :ok =
       store.record_step_success(
         run_id,
-        original_step.name,
+        store_key,
         value,
         Map.put(attrs, :dynamic_steps, length(steps))
       )
@@ -175,13 +245,13 @@ defmodule AshDurableReactor.StepWrapper do
     {:ok, value, wrapped_steps}
   end
 
-  defp handle_run_result({:halt, reason}, store, run_id, original_step, attrs, _context, _options) do
-    :ok = store.record_step_halt(run_id, original_step.name, reason, attrs)
+  defp handle_run_result({:halt, reason}, store, run_id, store_key, attrs, _context, _options) do
+    :ok = store.record_step_halt(run_id, store_key, reason, attrs)
     {:halt, reason}
   end
 
-  defp handle_run_result(:retry, store, run_id, original_step, attrs, _context, _options) do
-    :ok = store.record_step_retry(run_id, original_step.name, nil, attrs)
+  defp handle_run_result(:retry, store, run_id, store_key, attrs, _context, _options) do
+    :ok = store.record_step_retry(run_id, store_key, nil, attrs)
     :retry
   end
 
@@ -189,12 +259,12 @@ defmodule AshDurableReactor.StepWrapper do
          {:retry, reason},
          store,
          run_id,
-         original_step,
+         store_key,
          attrs,
          _context,
          _options
        ) do
-    :ok = store.record_step_retry(run_id, original_step.name, reason, attrs)
+    :ok = store.record_step_retry(run_id, store_key, reason, attrs)
     {:retry, reason}
   end
 
@@ -202,12 +272,12 @@ defmodule AshDurableReactor.StepWrapper do
          {:error, reason},
          store,
          run_id,
-         original_step,
+         store_key,
          attrs,
          _context,
          _options
        ) do
-    :ok = store.record_step_error(run_id, original_step.name, reason, attrs)
+    :ok = store.record_step_error(run_id, store_key, reason, attrs)
     {:error, reason}
   end
 

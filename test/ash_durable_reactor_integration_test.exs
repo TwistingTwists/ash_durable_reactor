@@ -9,6 +9,7 @@ defmodule AshDurableReactorIntegrationTest do
     CompensationFlow,
     ComposeFlow,
     CustomResumableFlow,
+    RecurseFlow,
     SwitchFlow,
     UndoFlow
   }
@@ -190,5 +191,55 @@ defmodule AshDurableReactorIntegrationTest do
     # switch meta-step is not wrapped, so it re-runs and emits fresh
     # branch steps (also unwrapped since they are dynamic)
     assert TestCounter.get(:counted_double) == 1
+  end
+
+  test "recurse loops all iterations and returns final result" do
+    run_id = "recurse-1"
+    initial_draft = %{content: "draft", revision_number: 0, approved: false}
+
+    assert {:ok, result} =
+             AshDurableReactor.run(
+               RecurseFlow,
+               %{draft: initial_draft},
+               %{},
+               run_id: run_id,
+               async?: false
+             )
+
+    assert result.draft.approved == true
+    assert result.draft.revision_number == 3
+    assert TestCounter.get(:revision) == 3
+    assert %{status: :succeeded} = Store.get_run(run_id)
+  end
+
+  test "recurse replays completed result on second run" do
+    run_id = "recurse-replay-1"
+    initial_draft = %{content: "draft", revision_number: 0, approved: false}
+
+    assert {:ok, result} =
+             AshDurableReactor.run(
+               RecurseFlow,
+               %{draft: initial_draft},
+               %{},
+               run_id: run_id,
+               async?: false
+             )
+
+    assert result.draft.revision_number == 3
+    assert TestCounter.get(:revision) == 3
+
+    TestCounter.reset!()
+
+    assert {:ok, replayed} =
+             AshDurableReactor.run(
+               RecurseFlow,
+               %{draft: initial_draft},
+               %{},
+               run_id: run_id,
+               async?: false
+             )
+
+    assert replayed == result
+    assert TestCounter.get(:revision) == 0
   end
 end

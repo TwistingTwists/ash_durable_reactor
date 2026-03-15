@@ -188,3 +188,49 @@ defmodule AshDurableReactor.TestReactors.SwitchFlow do
 
   return :route
 end
+
+defmodule AshDurableReactor.TestSteps.RevisionStep do
+  use Reactor.Step
+
+  @impl true
+  def run(%{draft: draft}, _context, _options) do
+    revision = Map.get(draft, :revision_number, 0) + 1
+    content = Map.get(draft, :content, "") <> " [rev#{revision}]"
+    approved = revision >= 3
+
+    AshDurableReactor.TestCounter.bump(:revision)
+
+    {:ok, %{content: content, revision_number: revision, approved: approved}}
+  end
+end
+
+defmodule AshDurableReactor.TestReactors.RevisionSubReactor do
+  use Reactor, extensions: [AshDurableReactor]
+
+  input :draft
+
+  step :revise, AshDurableReactor.TestSteps.RevisionStep do
+    argument :draft, input(:draft)
+  end
+
+  step :wrap_for_recurse do
+    argument :result, result(:revise)
+    run fn %{result: result}, _ctx -> {:ok, %{draft: result}} end
+  end
+
+  return :wrap_for_recurse
+end
+
+defmodule AshDurableReactor.TestReactors.RecurseFlow do
+  use Reactor, extensions: [AshDurableReactor]
+
+  input :draft
+
+  recurse :revision_loop, AshDurableReactor.TestReactors.RevisionSubReactor do
+    argument :draft, input(:draft)
+    max_iterations 5
+    exit_condition fn result -> result[:draft][:approved] == true end
+  end
+
+  return :revision_loop
+end
